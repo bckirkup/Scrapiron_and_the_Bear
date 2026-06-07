@@ -29,7 +29,7 @@ classifiers = [
 dependencies = [
     "numpy>=1.24",
     "pydantic>=2.0",
-    "tattletots>=0.1.0",
+    "tattletots @ git+https://github.com/bckirkup/TattleTots.git",
 ]
 
 [project.optional-dependencies]
@@ -43,6 +43,9 @@ dev = [
 
 [project.scripts]
 fire-ecology = "fire_ecology.cli:main"
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/fire_ecology"]
