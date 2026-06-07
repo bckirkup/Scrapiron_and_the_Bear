@@ -93,3 +93,18 @@ class TestFireMetrics:
         metrics.record_detections_from_grid([(1, 1)], grid, time_step=2)
         metrics.record_detections_from_grid([(1, 1)], grid, time_step=3)
         assert len(metrics.detection_latencies) == 1
+
+    def test_detected_cells_per_instance(self) -> None:
+        """_detected_cells must not be shared across FireMetrics instances."""
+        from fire_ecology.environment.fire import FireGrid
+
+        grid = FireGrid(rows=5, cols=5)
+        grid.ignite(0, 0, time_step=0)
+
+        m1 = FireMetrics()
+        m2 = FireMetrics()
+        m1.record_detections_from_grid([(0, 0)], grid, time_step=1)
+        assert len(m1.detection_latencies) == 1
+        # m2 should NOT see m1's detected cells
+        m2.record_detections_from_grid([(0, 0)], grid, time_step=2)
+        assert len(m2.detection_latencies) == 1
