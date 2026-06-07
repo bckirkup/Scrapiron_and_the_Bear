@@ -71,6 +71,17 @@ class BodyPlan(BaseModel):
         """Whether this drone can perform fire suppression."""
         return self.tank_gallons > 0.0
 
+    @property
+    def suppression_effectiveness(self) -> float:
+        """Effectiveness of this body plan's suppression capability.
+
+        Scales with tank size: 5-gal → 0.4, 40-gal → 0.85.
+        Returns 0.0 for drones without a water tank.
+        """
+        if self.tank_gallons <= 0.0:
+            return 0.0
+        return min(0.2 + 0.0175 * self.tank_gallons, 0.95)
+
     @classmethod
     def scout(cls) -> BodyPlan:
         """Factory for scout drone: high endurance, rich sensing, no water."""

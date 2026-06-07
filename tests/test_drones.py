@@ -38,6 +38,19 @@ class TestBodyPlan:
         assert bp.plan_type == BodyPlanType.HYBRID
         assert bp.can_suppress
 
+    def test_suppression_effectiveness_scales_with_tank(self) -> None:
+        scout = BodyPlan.scout()
+        small = BodyPlan.strike_small()
+        large = BodyPlan.strike_large()
+        assert scout.suppression_effectiveness == 0.0
+        assert 0.2 < small.suppression_effectiveness < 0.5
+        assert large.suppression_effectiveness > small.suppression_effectiveness
+        assert large.suppression_effectiveness <= 0.95
+
+    def test_suppression_effectiveness_no_tank(self) -> None:
+        bp = BodyPlan(tank_gallons=0.0)
+        assert bp.suppression_effectiveness == 0.0
+
 
 class TestDroneGenome:
     def test_default_fractions_sum_to_one(self) -> None:
