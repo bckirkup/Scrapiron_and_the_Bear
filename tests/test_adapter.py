@@ -55,6 +55,28 @@ class TestFireEcologyAdapter:
         adapter = FireEcologyAdapter(grid_rows=10, grid_cols=10)
         assert adapter.fire_grid.rows == 10
 
+    def test_default_thermal_dim_capped(self) -> None:
+        adapter = FireEcologyAdapter(grid_rows=30, grid_cols=30)
+        thermal = adapter.get_streams()[0]
+        assert thermal.dimensionality == FireEcologyAdapter.DEFAULT_THERMAL_DIM
+
+    def test_custom_thermal_dim(self) -> None:
+        adapter = FireEcologyAdapter(grid_rows=10, grid_cols=10, max_thermal_dim=50)
+        thermal = adapter.get_streams()[0]
+        # 10*10=100 cells, capped to 50
+        assert thermal.dimensionality == 50
+
+    def test_thermal_dim_uses_full_grid_when_smaller(self) -> None:
+        adapter = FireEcologyAdapter(grid_rows=3, grid_cols=3, max_thermal_dim=100)
+        thermal = adapter.get_streams()[0]
+        # 3*3=9 cells, smaller than cap
+        assert thermal.dimensionality == 9
+
+    def test_thermal_dim_none_uses_default(self) -> None:
+        a1 = FireEcologyAdapter(grid_rows=10, grid_cols=10, max_thermal_dim=None)
+        a2 = FireEcologyAdapter(grid_rows=10, grid_cols=10)
+        assert a1.get_streams()[0].dimensionality == a2.get_streams()[0].dimensionality
+
     def test_weather_evolves(self) -> None:
         adapter = FireEcologyAdapter(seed=42)
         temps: list[float] = []

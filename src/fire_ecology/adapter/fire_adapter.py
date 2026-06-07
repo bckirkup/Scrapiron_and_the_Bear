@@ -28,6 +28,8 @@ class FireEcologyAdapter(DomainAdapter):
     into abstract data streams consumable by Tot agents.
     """
 
+    DEFAULT_THERMAL_DIM: int = 30
+
     def __init__(
         self,
         grid_rows: int = 20,
@@ -37,11 +39,15 @@ class FireEcologyAdapter(DomainAdapter):
         n_fuel_sensors: int = 2,
         opir_cadence: int = 5,
         seed: int = 42,
+        max_thermal_dim: int | None = None,
     ) -> None:
         self.rng = np.random.default_rng(seed)
         self._grid = FireGrid(rows=grid_rows, cols=grid_cols)
         self._weather = WeatherState()
         self._opir = OPIRSatellite(cadence=opir_cadence)
+        self._max_thermal_dim = (
+            max_thermal_dim if max_thermal_dim is not None else self.DEFAULT_THERMAL_DIM
+        )
 
         self._cameras = self._place_cameras(n_cameras)
         self._weather_stations = self._place_weather_stations(n_weather_stations)
@@ -86,7 +92,7 @@ class FireEcologyAdapter(DomainAdapter):
         - weather_stream: weather station readings (5 dims per station)
         - fuel_stream: fuel moisture readings (3 dims per sensor)
         """
-        thermal_dim = min(self._grid.rows * self._grid.cols, 30)
+        thermal_dim = min(self._grid.rows * self._grid.cols, self._max_thermal_dim)
         weather_dim = len(self._weather_stations) * 5
         fuel_dim = len(self._fuel_sensors) * 3
 
