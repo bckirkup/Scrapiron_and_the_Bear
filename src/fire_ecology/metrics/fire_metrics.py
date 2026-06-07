@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
 
 if TYPE_CHECKING:
     from fire_ecology.environment.fire import FireGrid
@@ -52,9 +52,7 @@ class FireMetrics(BaseModel):
     total_opir_rescues: int = Field(default=0, ge=0)
     total_escalations: int = Field(default=0, ge=0)
     detection_latencies: list[int] = Field(default_factory=list)
-    _detected_cells: set[tuple[int, int]] = set()
-
-    model_config = {"arbitrary_types_allowed": True}
+    _detected_cells: set[tuple[int, int]] = PrivateAttr(default_factory=set)
 
     def record_step(self, metrics: StepMetrics) -> None:
         """Record a single step's metrics."""

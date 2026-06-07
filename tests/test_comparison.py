@@ -69,6 +69,38 @@ class TestComparison:
         assert "Architecture" in table
         assert "A0 Human" in table
 
+    def test_detection_latency_not_inf(self) -> None:
+        """Detection latency must be finite when fires are detected."""
+        config = ComparisonConfig(
+            steps=30,
+            grid_rows=10,
+            grid_cols=10,
+            seed=42,
+            n_drones=5,
+            include_a4=False,
+        )
+        results = run_comparison(config)
+        for r in results:
+            if r.detections > 0:
+                assert r.mean_detection_latency < float("inf"), (
+                    f"{r.name}: latency is inf despite {r.detections} detections"
+                )
+
+    def test_detection_latency_not_inf_with_a4(self) -> None:
+        """A4/BMA also produces finite detection latency."""
+        config = ComparisonConfig(
+            steps=30,
+            grid_rows=10,
+            grid_cols=10,
+            seed=42,
+            n_drones=5,
+            include_a4=True,
+        )
+        results = run_comparison(config)
+        a4 = [r for r in results if r.name == "A4 BMA"][0]
+        if a4.detections > 0:
+            assert a4.mean_detection_latency < float("inf")
+
     def test_format_json(self) -> None:
         config = ComparisonConfig(
             steps=5,
