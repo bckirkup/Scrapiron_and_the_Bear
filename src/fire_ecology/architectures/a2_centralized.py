@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 
 from fire_ecology.architectures.base import Architecture, ArchitectureResult
+from fire_ecology.drones.body_plan import BodyPlan
 from fire_ecology.environment.fire import FireGrid
 from fire_ecology.environment.weather import WeatherState
 from fire_ecology.sensors.opir import OPIRSatellite
@@ -22,11 +23,17 @@ class CentralizedOptimizer(Architecture):
     def __init__(
         self,
         n_drones: int = 10,
-        suppression_effectiveness: float = 0.7,
+        suppression_effectiveness: float | None = None,
         detection_range: int = 5,
+        body_plan: BodyPlan | None = None,
     ) -> None:
         self.n_drones = n_drones
-        self.suppression_effectiveness = suppression_effectiveness
+        self.body_plan = body_plan or BodyPlan.strike_small()
+        self.suppression_effectiveness = (
+            suppression_effectiveness
+            if suppression_effectiveness is not None
+            else self.body_plan.suppression_effectiveness
+        )
         self.detection_range = detection_range
         self._drone_positions: list[tuple[int, int]] = []
 

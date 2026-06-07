@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 
 from fire_ecology.architectures.base import Architecture, ArchitectureResult
+from fire_ecology.drones.body_plan import BodyPlan
 from fire_ecology.environment.fire import FireGrid
 from fire_ecology.environment.weather import WeatherState
 from fire_ecology.sensors.opir import OPIRSatellite
@@ -23,12 +24,18 @@ class FederatedEdge(Architecture):
         n_nodes: int = 4,
         node_range: int = 8,
         detection_prob: float = 0.75,
-        suppression_effectiveness: float = 0.5,
+        suppression_effectiveness: float | None = None,
+        body_plan: BodyPlan | None = None,
     ) -> None:
         self.n_nodes = n_nodes
         self.node_range = node_range
         self.detection_prob = detection_prob
-        self.suppression_effectiveness = suppression_effectiveness
+        self.body_plan = body_plan or BodyPlan.strike_small()
+        self.suppression_effectiveness = (
+            suppression_effectiveness
+            if suppression_effectiveness is not None
+            else self.body_plan.suppression_effectiveness
+        )
         self._node_positions: list[tuple[int, int]] = []
 
     def step(

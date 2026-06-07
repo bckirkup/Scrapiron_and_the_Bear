@@ -71,3 +71,25 @@ class TestFireMetrics:
         assert "mean_detection_latency" in summary
         assert "total_cost" in summary
         assert "opir_rescue_rate" in summary
+
+    def test_record_detections_from_grid(self) -> None:
+        from fire_ecology.environment.fire import FireGrid
+
+        grid = FireGrid(rows=5, cols=5)
+        grid.ignite(2, 2, time_step=3)
+
+        metrics = FireMetrics()
+        metrics.record_detections_from_grid([(2, 2)], grid, time_step=5)
+        assert len(metrics.detection_latencies) == 1
+        assert metrics.detection_latencies[0] == 2  # 5 - 3 = 2
+
+    def test_record_detections_from_grid_deduplication(self) -> None:
+        from fire_ecology.environment.fire import FireGrid
+
+        grid = FireGrid(rows=5, cols=5)
+        grid.ignite(1, 1, time_step=0)
+
+        metrics = FireMetrics()
+        metrics.record_detections_from_grid([(1, 1)], grid, time_step=2)
+        metrics.record_detections_from_grid([(1, 1)], grid, time_step=3)
+        assert len(metrics.detection_latencies) == 1

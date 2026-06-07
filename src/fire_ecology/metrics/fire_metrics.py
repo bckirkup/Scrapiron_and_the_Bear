@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from pydantic import BaseModel, Field
+
+if TYPE_CHECKING:
+    from fire_ecology.environment.fire import FireGrid
 
 
 class StepMetrics(BaseModel):
@@ -47,6 +52,9 @@ class FireMetrics(BaseModel):
     total_opir_rescues: int = Field(default=0, ge=0)
     total_escalations: int = Field(default=0, ge=0)
     detection_latencies: list[int] = Field(default_factory=list)
+    _detected_cells: set[tuple[int, int]] = set()
+
+    model_config = {"arbitrary_types_allowed": True}
 
     def record_step(self, metrics: StepMetrics) -> None:
         """Record a single step's metrics."""
@@ -60,6 +68,23 @@ class FireMetrics(BaseModel):
     def record_detection_latency(self, latency: int) -> None:
         """Record the detection latency for a single fire event."""
         self.detection_latencies.append(latency)
+
+    def record_detections_from_grid(
+        self, detections: list[tuple[int, int]], fire_grid: FireGrid, time_step: int
+    ) -> None:
+        """Record detection latency for newly-detected fire cells.
+
+        Uses the fire cell's ``ignition_step`` to compute how many steps
+        elapsed between ignition and first detection.  Each cell is only
+        counted once (tracked via ``_detected_cells``).
+        """
+        for r, c in detections:
+            if (r, c) in self._detected_cells:
+                continue
+            fs = fire_grid.fire[r][c]
+            if fs.ignition_step >= 0:
+                self._detected_cells.add((r, c))
+                self.record_detection_latency(time_step - fs.ignition_step)
 
     @property
     def mean_detection_latency(self) -> float:

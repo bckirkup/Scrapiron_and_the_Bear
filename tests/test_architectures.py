@@ -8,6 +8,7 @@ from fire_ecology.architectures.a0_human import HumanBaseline
 from fire_ecology.architectures.a1_camera_ml import CameraMLNetwork
 from fire_ecology.architectures.a2_centralized import CentralizedOptimizer
 from fire_ecology.architectures.a3_federated import FederatedEdge
+from fire_ecology.drones.body_plan import BodyPlan
 from fire_ecology.environment.fire import FireGrid
 from fire_ecology.environment.weather import WeatherState
 from fire_ecology.sensors.camera_tower import CameraTower
@@ -83,3 +84,21 @@ class TestFederatedEdge:
         )
         arch.reset()
         assert len(arch._node_positions) == 0
+
+
+class TestBodyPlanSuppression:
+    """Verify architectures respect body-plan suppression effectiveness."""
+
+    def test_centralized_uses_body_plan(self) -> None:
+        arch_small = CentralizedOptimizer(n_drones=5, body_plan=BodyPlan.strike_small())
+        arch_large = CentralizedOptimizer(n_drones=5, body_plan=BodyPlan.strike_large())
+        assert arch_small.suppression_effectiveness < arch_large.suppression_effectiveness
+
+    def test_federated_uses_body_plan(self) -> None:
+        arch_small = FederatedEdge(n_nodes=4, body_plan=BodyPlan.strike_small())
+        arch_large = FederatedEdge(n_nodes=4, body_plan=BodyPlan.strike_large())
+        assert arch_small.suppression_effectiveness < arch_large.suppression_effectiveness
+
+    def test_explicit_override_still_works(self) -> None:
+        arch = CentralizedOptimizer(n_drones=5, suppression_effectiveness=0.99)
+        assert arch.suppression_effectiveness == 0.99
