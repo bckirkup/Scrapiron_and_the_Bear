@@ -70,9 +70,6 @@ warn_unused_configs = true
 packages = ["fire_ecology"]
 mypy_path = ["src"]
 
-[[tool.mypy.overrides]]
-module = "tattletots.*"
-ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

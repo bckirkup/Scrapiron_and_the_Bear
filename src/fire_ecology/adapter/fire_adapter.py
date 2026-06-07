@@ -21,7 +21,7 @@ from fire_ecology.sensors.weather_station import WeatherStation
 from fire_ecology.users.fire_users import create_fire_users
 
 
-class FireEcologyAdapter(DomainAdapter):  # type: ignore[misc]
+class FireEcologyAdapter(DomainAdapter):
     """Domain adapter bridging fire ecology simulation to TattleTots.
 
     Manages the fire grid, weather, sensors, and translates their outputs
