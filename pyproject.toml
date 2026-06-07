@@ -1,0 +1,88 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fire-ecology"
+version = "0.1.0"
+description = "FireEcology domain simulation for TattleTots — autonomous fire-regime management with physical drone Tots"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.11"
+authors = [{ name = "Benjamin Kirkup", email = "bckirkup@gmail.com" }]
+keywords = [
+    "simulation",
+    "fire-ecology",
+    "wildfire",
+    "drone",
+    "agent-based",
+    "tattletots",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "numpy>=1.24",
+    "pydantic>=2.0",
+    "tattletots @ git+https://github.com/bckirkup/TattleTots.git",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.4",
+    "mypy>=1.8",
+    "pre-commit>=3.0",
+]
+
+[project.scripts]
+fire-ecology = "fire_ecology.cli:main"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fire_ecology"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = ["E501", "SIM108"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["fire_ecology"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+packages = ["fire_ecology"]
+mypy_path = ["src"]
+
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers -ra"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "smoke: smoke test scenario validating end-to-end fire simulation",
+    "integration: integration tests requiring TattleTots engine",
+]
+
+[tool.coverage.run]
+source = ["fire_ecology"]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
