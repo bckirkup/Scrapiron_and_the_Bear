@@ -51,6 +51,7 @@ class ComparisonConfig:
     n_cameras: int = 3
     opir_cadence: int = 5
     include_a4: bool = True
+    max_thermal_dim: int | None = None
 
 
 def _build_fresh_grid(config: ComparisonConfig, rng: np.random.Generator) -> FireGrid:
@@ -116,6 +117,7 @@ def _make_architectures(
                     seed=config.seed,
                     body_plan=BodyPlan.hybrid(),
                     initial_population=config.n_drones,
+                    max_thermal_dim=config.max_thermal_dim,
                 ),
             )
         )

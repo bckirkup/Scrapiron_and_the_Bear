@@ -38,6 +38,7 @@ class BMAFireEcology(Architecture):
         seed: int = 42,
         body_plan: BodyPlan | None = None,
         initial_population: int = 15,
+        max_thermal_dim: int | None = None,
     ) -> None:
         self.n_drones = n_drones
         self.body_plan = body_plan or BodyPlan.hybrid()
@@ -45,6 +46,7 @@ class BMAFireEcology(Architecture):
         self._grid_rows = grid_rows
         self._grid_cols = grid_cols
         self._initial_population = initial_population
+        self._max_thermal_dim = max_thermal_dim
 
         self._adapter: FireEcologyAdapter | None = None
         self._world: World | None = None
@@ -56,6 +58,7 @@ class BMAFireEcology(Architecture):
             grid_rows=self._grid_rows,
             grid_cols=self._grid_cols,
             seed=self._seed,
+            max_thermal_dim=self._max_thermal_dim,
         )
 
         config = SimulationConfig(

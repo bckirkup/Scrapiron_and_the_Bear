@@ -21,6 +21,7 @@ def _run_simulation(args: argparse.Namespace) -> None:
         grid_rows=args.grid_rows,
         grid_cols=args.grid_cols,
         seed=args.seed,
+        max_thermal_dim=args.max_thermal_dim,
     )
     metrics = FireMetrics()
 
@@ -75,6 +76,7 @@ def _run_compare(args: argparse.Namespace) -> None:
         seed=args.seed,
         n_drones=args.n_drones,
         include_a4=not args.no_a4,
+        max_thermal_dim=args.max_thermal_dim,
     )
     results = run_comparison(config)
 
@@ -130,6 +132,16 @@ def _add_common_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--verbose", action="store_true", help="Print per-step output")
     parser.add_argument("--json", action="store_true", help="Output metrics as JSON")
+    parser.add_argument(
+        "--max-thermal-dim",
+        type=int,
+        default=None,
+        help=(
+            "Maximum dimensionality for the thermal detection stream. "
+            f"Defaults to {FireEcologyAdapter.DEFAULT_THERMAL_DIM}. "
+            "Use grid_rows*grid_cols for full resolution."
+        ),
+    )
 
 
 if __name__ == "__main__":
