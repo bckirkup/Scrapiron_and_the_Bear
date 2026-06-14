@@ -83,6 +83,21 @@ fire-ecology --steps 200 --verbose
 fire-ecology --steps 100 --json
 ```
 
+## Integrated Mode (with TattleTots Agent Ecology)
+
+Run the full integration — domain generates sensor streams while TattleTots agents compress, escalate, evolve, and compete:
+
+```bash
+python scripts/run_with_tattletots.py \
+    --config configs/tattletots_integration.json \
+    --output results.json \
+    --verbose
+```
+
+This produces unified JSON output (`tattletots.output_schema.SimulationOutput`) with consistent `ecology_metrics` and `cost_metrics` fields, enabling cross-domain comparison with the sibling repos ([Coral_Key_in_Three_Hour_Epochs](https://github.com/bckirkup/Coral_Key_in_Three_Hour_Epochs), [Xylella_SPQR](https://github.com/bckirkup/Xylella_SPQR)).
+
+See [docs/COORDINATION.md](docs/COORDINATION.md) for full coordination guide, configuration reference, and comparison examples.
+
 ## Competing Architectures
 
 All architectures receive the same sensors, data streams, and hardware:
