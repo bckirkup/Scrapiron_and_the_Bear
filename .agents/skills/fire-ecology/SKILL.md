@@ -79,3 +79,40 @@ The adapter (`adapter/fire_adapter.py`) implements `DomainAdapter`:
 - `get_ground_truth(time_step)` → True if any cell is burning
 - `score_relevance(signal, user)` → dot-product relevance
 - `compute_costs(...)` → surveillance + response + damage costs
+
+## Integrated Mode (Full Agent Ecology)
+
+```bash
+python scripts/run_with_tattletots.py \
+    --config configs/tattletots_integration.json \
+    --output results.json --verbose
+```
+
+Output conforms to `tattletots.output_schema.SimulationOutput` (unified JSON).
+See `docs/COORDINATION.md` for coordination with sibling repos.
+
+## GPU Acceleration
+
+```bash
+pip install -e ".[gpu]"  # installs cupy-cuda12x
+```
+
+Set `"use_gpu": true` in the `"simulation"` section of the integration config.
+Falls back silently to NumPy if CuPy or CUDA is unavailable.
+
+## Parameter Scans
+
+Generate config variants and run in parallel for large sweeps:
+
+```bash
+python scripts/run_with_tattletots.py --config <variant>.json --output results/<name>.json
+```
+
+Key domain parameters to sweep: `grid_rows`, `grid_cols`, `ignition_probability`,
+`wind_speed`, `steps`, `seed`.
+
+Load results:
+```python
+from tattletots.output_schema import SimulationOutput
+result = SimulationOutput.model_validate_json(path.read_text())
+```
