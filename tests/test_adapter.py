@@ -5,6 +5,8 @@ from __future__ import annotations
 import numpy as np
 
 from fire_ecology.adapter.fire_adapter import FireEcologyAdapter
+from fire_ecology.environment.fire import FireGrid
+from fire_ecology.environment.weather import WeatherState
 
 
 class TestFireEcologyAdapter:
@@ -110,3 +112,15 @@ class TestFireEcologyAdapter:
         suppressed = adapter.dispatch_drone_suppression(before)
         assert suppressed >= 0
         assert len(adapter.fire_grid.active_fire_cells()) <= before
+
+    def test_observe_grid_reads_external_without_stepping_internal(self) -> None:
+        external = FireGrid(rows=10, cols=10)
+        external.ignite(5, 5, 0)
+        adapter = FireEcologyAdapter(grid_rows=10, grid_cols=10, seed=42, max_thermal_dim=100)
+        weather = WeatherState(temperature=30.0, humidity=0.3, wind_speed=5.0)
+
+        adapter.observe_grid(external, weather, time_step=0)
+
+        assert len(adapter.fire_grid.active_fire_cells()) == 0
+        thermal = adapter.get_streams()[0].current_data
+        assert float(np.max(thermal)) > 0.0

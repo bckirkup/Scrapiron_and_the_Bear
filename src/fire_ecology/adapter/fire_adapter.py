@@ -144,7 +144,24 @@ class FireEcologyAdapter(DomainAdapter):
         )
         self._grid.step(self._weather, time_step, self.rng)
         self._update_fuel_moisture()
-        self._update_streams(time_step)
+        self._update_streams(time_step, fire_grid=self._grid, rng=self.rng)
+
+    def observe_grid(
+        self,
+        fire_grid: FireGrid,
+        weather: WeatherState,
+        time_step: int,
+        rng: np.random.Generator | None = None,
+    ) -> None:
+        """Populate sensor streams from an external grid without advancing physics.
+
+        Use when a comparison harness or other caller owns the canonical FireGrid
+        (e.g. A4 BMA inside ``run_comparison``). The adapter acts as a sensor
+        front-end only; it does not step its internal grid.
+        """
+        self._current_step = time_step
+        self._weather = weather
+        self._update_streams(time_step, fire_grid=fire_grid, rng=rng or self.rng)
 
     def dispatch_drone_suppression(self, n_correct_reports: int) -> int:
         """Dispatch drones to suppress fires after verified agent detections."""
@@ -229,30 +246,42 @@ class FireEcologyAdapter(DomainAdapter):
                     np.clip(fuel.live_moisture - drying * 0.5 + wetting * 0.7, 0.1, 1.0)
                 )
 
-    def _update_streams(self, time_step: int) -> None:
+    def _update_streams(
+        self,
+        time_step: int,
+        *,
+        fire_grid: FireGrid | None = None,
+        rng: np.random.Generator | None = None,
+    ) -> None:
         """Populate stream data from sensor outputs."""
-        thermal = self._build_thermal_vector(time_step)
+        grid = fire_grid if fire_grid is not None else self._grid
+        observe_rng = rng if rng is not None else self.rng
+
+        thermal = self._build_thermal_vector(time_step, grid)
         self._streams[0].update(thermal)
 
         weather_obs = np.concatenate(
-            [ws.observe(self._weather, self.rng) for ws in self._weather_stations]
+            [ws.observe(self._weather, observe_rng) for ws in self._weather_stations]
         )
         self._streams[1].update(weather_obs)
 
         fuel_parts: list[np.ndarray] = []
         for fs in self._fuel_sensors:
-            obs = fs.observe(self._grid.fuel[fs.row][fs.col], time_step, self.rng)
+            obs = fs.observe(grid.fuel[fs.row][fs.col], time_step, observe_rng)
             fuel_parts.append(obs if obs is not None else np.zeros(3))
         self._streams[2].update(np.concatenate(fuel_parts))
 
-    def _build_thermal_vector(self, time_step: int) -> np.ndarray:
+    def _build_thermal_vector(
+        self, time_step: int, fire_grid: FireGrid | None = None
+    ) -> np.ndarray:
         """Flatten fire intensity grid into a capped-dimension stream."""
+        grid = fire_grid if fire_grid is not None else self._grid
         dim = self._streams[0].dimensionality
-        full_grid = np.zeros(self._grid.rows * self._grid.cols)
-        for r in range(self._grid.rows):
-            for c in range(self._grid.cols):
-                fs = self._grid.fire[r][c]
-                full_grid[r * self._grid.cols + c] = fs.intensity if fs.is_active else 0.0
+        full_grid = np.zeros(grid.rows * grid.cols)
+        for r in range(grid.rows):
+            for c in range(grid.cols):
+                fs = grid.fire[r][c]
+                full_grid[r * grid.cols + c] = fs.intensity if fs.is_active else 0.0
 
         if full_grid.size <= dim:
             result = np.zeros(dim)

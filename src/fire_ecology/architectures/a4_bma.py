@@ -23,7 +23,7 @@ class BMAFireEcology(Architecture):
     """BMA architecture using TattleTots as the decision-making engine.
 
     Each simulation step:
-    1. Advance the internal ``FireEcologyAdapter`` (updates sensor streams).
+    1. Read sensor streams from the harness-owned ``fire_grid`` (no internal physics).
     2. Feed ground truth to the ``World`` engine.
     3. Run one TattleTots engine step (agents compress, report, evolve).
     4. Map Tot escalation count to fire-grid detections.
@@ -91,8 +91,8 @@ class BMAFireEcology(Architecture):
         assert self._adapter is not None
         assert self._world is not None
 
-        # 1. Advance domain simulation (updates stream data)
-        self._adapter.step(time_step)
+        # 1. Populate sensor streams from the canonical harness grid (no shadow sim).
+        self._adapter.observe_grid(fire_grid, weather, time_step, rng)
 
         # 2. Feed ground truth locations
         active_locations = fire_grid.active_fire_cells()

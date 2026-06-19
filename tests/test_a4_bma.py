@@ -64,3 +64,11 @@ class TestBMAFireEcology:
             initial_population=5,
         )
         assert arch.body_plan.suppression_effectiveness > 0.5
+
+    def test_uses_harness_grid_not_internal_adapter_physics(self) -> None:
+        grid, weather, opir, rng = _setup()
+        arch = BMAFireEcology(n_drones=5, grid_rows=10, grid_cols=10, seed=42, initial_population=5)
+        arch.step(grid, weather, opir, time_step=0, rng=rng)
+        assert arch._adapter is not None
+        assert len(grid.active_fire_cells()) > 0
+        assert len(arch._adapter.fire_grid.active_fire_cells()) == 0
