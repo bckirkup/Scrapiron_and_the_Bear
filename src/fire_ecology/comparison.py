@@ -165,9 +165,7 @@ def run_comparison(config: ComparisonConfig | None = None) -> list[ComparisonRes
         for step in range(config.steps):
             weather = _evolve_weather(step, weather_rng, config.weather_volatility)
             grid.step(weather, step, rng)
-            grid.stochastic_ignition(
-                weather, step, rng, base_rate=config.base_ignition_rate
-            )
+            grid.stochastic_ignition(weather, step, rng, base_rate=config.base_ignition_rate)
 
             result = arch.step(grid, weather, opir, step, rng)
             total_det += len(result.detections)
