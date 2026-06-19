@@ -94,9 +94,9 @@ class BMAFireEcology(Architecture):
         # 1. Advance domain simulation (updates stream data)
         self._adapter.step(time_step)
 
-        # 2. Feed ground truth
-        has_fire = len(fire_grid.active_fire_cells()) > 0
-        self._world.set_ground_truth(has_fire)
+        # 2. Feed ground truth locations
+        active_locations = fire_grid.active_fire_cells()
+        self._world.set_event_state(active_locations)
 
         # 3. Run one TattleTots step
         record = self._world.step()

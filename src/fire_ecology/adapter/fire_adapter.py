@@ -9,6 +9,7 @@ from __future__ import annotations
 import numpy as np
 from numpy.typing import NDArray
 from tattletots.interface.domain_adapter import DomainAdapter
+from tattletots.models.location import EventLocation
 from tattletots.models.stream import Stream, StreamType
 from tattletots.models.user import User
 
@@ -138,6 +139,23 @@ class FireEcologyAdapter(DomainAdapter):
     def get_ground_truth(self, time_step: int) -> bool:
         """A fire event is active if any cells are currently burning."""
         return len(self._grid.active_fire_cells()) > 0
+
+    def get_active_locations(self, time_step: int) -> list[EventLocation]:
+        """Return grid coordinates of all currently burning cells."""
+        return self._grid.active_fire_cells()
+
+    def infer_report_location(
+        self,
+        stream_data: list[NDArray[np.float64]],
+        stream_labels: list[str],
+    ) -> EventLocation:
+        """Infer fire location from thermal stream peak."""
+        for data, label in zip(stream_data, stream_labels, strict=False):
+            if label == "thermal_detection" and data.size > 0:
+                peak_idx = int(np.argmax(data))
+                cols = self._grid.cols
+                return (peak_idx // cols, peak_idx % cols)
+        return (0, 0)
 
     def score_relevance(self, signal_vector: NDArray[np.float64], user: User) -> float:
         return float(user.compute_relevance(signal_vector))

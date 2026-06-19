@@ -24,7 +24,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 from fire_ecology.comparison import ComparisonConfig, run_comparison
 
@@ -38,7 +38,7 @@ def run_single_simulation(
     grid_cols: int,
     base_ignition_rate: float,
     weather_volatility: float,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Run a single fire ecology baseline comparison (A0-A3)."""
     start_time = time.time()
 
@@ -76,9 +76,7 @@ def run_single_simulation(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Parameter Scan Runner for Fire Ecology Baselines"
-    )
+    parser = argparse.ArgumentParser(description="Parameter Scan Runner for Fire Ecology Baselines")
     parser.add_argument(
         "--config",
         type=Path,
@@ -108,7 +106,7 @@ def main() -> int:
         print(f"[-] Error: Config file not found at {args.config}")
         return 1
 
-    with open(args.config, "r") as f:
+    with open(args.config) as f:
         config_data = json.load(f)
 
     output_dir_name = (
@@ -148,7 +146,7 @@ def main() -> int:
     factor_names = list(factor_grid.keys())
     factor_values = [factor_grid[name] for name in factor_names]
 
-    runs_to_execute: List[Dict[str, Any]] = []
+    runs_to_execute: list[dict[str, Any]] = []
     for combo in itertools.product(*factor_values):
         combo_dict = dict(zip(factor_names, combo, strict=True))
         phase = combo_dict["deployment_phase"]
@@ -196,18 +194,18 @@ def main() -> int:
     print(f"[*] Execution mode: {'PARALLEL' if args.parallel else 'SEQUENTIAL'}")
     print("=" * 60)
 
-    results_key: Dict[str, Any] = {
-        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    results_key: dict[str, Any] = {
+        "timestamp": datetime.datetime.now(datetime.UTC).isoformat(),
         "is_smoke_test": args.smoke_test,
         "output_directory": str(output_dir),
         "runs": {},
     }
 
     start_time = time.time()
-    all_results: Dict[str, Any] = {}
-    logs: List[str] = []
+    all_results: dict[str, Any] = {}
+    logs: list[str] = []
 
-    def _process_result(run: Dict[str, Any], res: Dict[str, Any]) -> None:
+    def _process_result(run: dict[str, Any], res: dict[str, Any]) -> None:
         name = run["name"]
         results_key["runs"][name] = {
             "status": res["status"],
@@ -281,7 +279,7 @@ def main() -> int:
     log_file_path = output_dir / "all_runs.log"
     with open(log_file_path, "w") as f:
         f.write("=== Fire Ecology Baselines Parameter Scan Log ===\n")
-        f.write(f"Timestamp: {datetime.datetime.now(datetime.timezone.utc).isoformat()}\n")
+        f.write(f"Timestamp: {datetime.datetime.now(datetime.UTC).isoformat()}\n")
         f.write(f"Total Runs: {len(runs_to_execute)}\n")
         f.write(f"Total Elapsed Time: {total_elapsed:.1f}s\n")
         f.write("=" * 60 + "\n\n")
@@ -290,8 +288,7 @@ def main() -> int:
 
     print("\n=== Fire Ecology Baselines Parameter Scan Summary ===")
     print(
-        f"{'Run Name':<55} | {'Status':<10} | {'Time (s)':<8} | "
-        f"{'A2 Burned':<10} | {'A2 Cost':<10}"
+        f"{'Run Name':<55} | {'Status':<10} | {'Time (s)':<8} | {'A2 Burned':<10} | {'A2 Cost':<10}"
     )
     print("-" * 105)
     for name, run_res in results_key["runs"].items():
