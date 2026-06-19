@@ -77,8 +77,19 @@ The adapter (`adapter/fire_adapter.py`) implements `DomainAdapter`:
 - `get_users()` → returns 3 fire-domain user profiles
 - `step(time_step)` → advances fire sim, updates sensor streams
 - `get_ground_truth(time_step)` → True if any cell is burning
+- `get_active_locations(time_step)` → returns `(row, col)` of all burning cells
+- `infer_report_location(stream_data, stream_labels)` → finds peak in thermal stream → maps to grid `(row, col)`
 - `score_relevance(signal, user)` → dot-product relevance
 - `compute_costs(...)` → surveillance + response + damage costs
+
+**Note:** The integration loop uses `world.set_event_state(adapter.get_active_locations(step))` (not `set_ground_truth`). The engine verifies report correctness per-location.
+
+### Baselines
+
+Standalone baseline comparison files live in `baselines/`:
+- `run_fire_ecology_baselines.py` — Parameter scan runner for A0-A3 architectures
+- `fire_ecology_baselines_config.json` — Scan configuration
+- `fire_ecology_baselines_results.zip` — Pre-computed results
 
 ## Integrated Mode (Full Agent Ecology)
 
