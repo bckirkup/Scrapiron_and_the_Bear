@@ -1,30 +1,40 @@
 # Baseline Comparisons (Without TattleTots)
 
-This directory contains scripts and results for running the Fire Ecology simulation
-using **only** the conventional baseline management architectures (A0-A3), without
-the TattleTots agent ecology.
+Parameter scans using **only** conventional baseline architectures (A0–A3), no TattleTots agent ecology.
 
-## Contents
+## Run from workspace root
+
+All repos must be siblings under a common workspace root (e.g. `D:\TotsFiles\`):
+
+```bash
+cd D:\TotsFiles
+
+# Smoke test
+python Scrapiron_and_the_Bear/baselines/run_fire_ecology_baselines.py --smoke-test
+
+# Full scan (2,160 runs) with multiprocessing
+python Scrapiron_and_the_Bear/baselines/run_fire_ecology_baselines.py --workers 8
+```
+
+Parallel mode uses **ProcessPoolExecutor** (separate Python worker processes). You should see multiple `python.exe` jobs in Task Manager.
+
+## Files
 
 | File | Purpose |
 |------|---------|
-| `run_fire_ecology_baselines.py` | Parameter scan runner sweeping deployment phase, sensor dropout, drone fleet size, ignition rate, and weather volatility |
-| `fire_ecology_baselines_config.json` | Scan configuration (factors, seeds, steps) |
-| `fire_ecology_baselines_results.zip` | Pre-computed results from a full parameter scan |
+| `run_fire_ecology_baselines.py` | Parameter scan runner |
+| `fire_ecology_baselines_config.json` | Factor levels, seeds, steps |
+| `fire_ecology_baselines_results.zip` | Pre-computed results (optional) |
 
-## Usage
+## Shared utilities
 
-These scripts are designed to run from a workspace root that has all domain repos
-installed. They depend on `baseline_parallel` (a shared utility in the TattleTots
-`Large Experiments/` directory).
+Multiprocessing helpers live in `TattleTots/Large Experiments/baseline_parallel.py` and are auto-discovered at runtime.
+
+## Prerequisites
 
 ```bash
-# From the workspace root (parent of all repos):
-python Scrapiron_and_the_Bear/baselines/run_fire_ecology_baselines.py --smoke-test
+pip install -e TattleTots[dev]
+pip install -e Scrapiron_and_the_Bear[dev]
 ```
 
-## Relationship to TattleTots
-
-These baselines serve as the **control group** for evaluating TattleTots agent
-ecology performance. Compare results here against the integrated runs produced by
-`scripts/run_with_tattletots.py`.
+After editing domain code, reinstall the fire ecology package so workers pick up changes.

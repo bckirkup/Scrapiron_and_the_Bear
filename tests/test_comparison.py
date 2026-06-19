@@ -101,6 +101,20 @@ class TestComparison:
         if a4.detections > 0:
             assert a4.mean_detection_latency < float("inf")
 
+    def test_ignition_and_volatility_params(self) -> None:
+        config = ComparisonConfig(
+            steps=10,
+            grid_rows=5,
+            grid_cols=5,
+            seed=42,
+            n_drones=3,
+            base_ignition_rate=0.0004,
+            weather_volatility=2.0,
+            include_a4=False,
+        )
+        results = run_comparison(config)
+        assert len(results) == 4
+
     def test_format_json(self) -> None:
         config = ComparisonConfig(
             steps=5,

@@ -1,16 +1,10 @@
 #!/usr/bin/env python3
 """Parameter Scan Runner for Fire Ecology Baselines (Without TattleTots).
 
-This script runs a parameter scan for the Fire Ecology simulation using ONLY
-the baseline management architectures (A0, A1, A2, A3). It sweeps deployment
-phase, sensor dropout, drone fleet size, ignition rate, and weather volatility,
-running each combination in triplicate for 800 steps.
+Run from the workspace root (parent of all repos):
 
-All results are consolidated into exactly three output files to prevent clutter.
-
-Usage:
-    python run_fire_ecology_baselines.py --smoke-test
-    python run_fire_ecology_baselines.py
+    python Scrapiron_and_the_Bear/baselines/run_fire_ecology_baselines.py --smoke-test
+    python Scrapiron_and_the_Bear/baselines/run_fire_ecology_baselines.py --workers 8
 """
 
 from __future__ import annotations
@@ -19,14 +13,28 @@ import argparse
 import datetime
 import itertools
 import json
+import os
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
 from fire_ecology.comparison import ComparisonConfig, run_comparison
+
+_SCRIPT_DIR = Path(__file__).resolve().parent
+for _parent in [_SCRIPT_DIR, *_SCRIPT_DIR.parents]:
+    _large_experiments = _parent / "TattleTots" / "Large Experiments"
+    if (_large_experiments / "baseline_parallel.py").is_file():
+        sys.path.insert(0, str(_large_experiments))
+        break
+else:
+    sys.exit(
+        "[-] Error: Could not find TattleTots/Large Experiments/baseline_parallel.py.\n"
+        "    Ensure all repos are cloned as siblings under a common workspace root."
+    )
+
+from baseline_parallel import resolve_worker_count, run_process_pool
 
 
 def run_single_simulation(
@@ -80,25 +88,17 @@ def main() -> int:
     parser.add_argument(
         "--config",
         type=Path,
-        default=Path("fire_ecology_baselines_config.json"),
+        default=_SCRIPT_DIR / "fire_ecology_baselines_config.json",
         help="Path to parameter scan config JSON file",
     )
+    parser.add_argument("--smoke-test", action="store_true", help="Run a fast smoke test")
+    parser.add_argument("--parallel", action="store_true", default=True)
+    parser.add_argument("--no-parallel", action="store_false", dest="parallel")
     parser.add_argument(
-        "--smoke-test",
-        action="store_true",
-        help="Run a fast smoke test of the parameter scan",
-    )
-    parser.add_argument(
-        "--parallel",
-        action="store_true",
-        default=True,
-        help="Run simulations in parallel (default: True)",
-    )
-    parser.add_argument(
-        "--no-parallel",
-        action="store_false",
-        dest="parallel",
-        help="Run simulations sequentially",
+        "--workers",
+        type=int,
+        default=None,
+        help="Number of parallel worker processes (default: min(CPU count, job count))",
     )
     args = parser.parse_args()
 
@@ -189,9 +189,19 @@ def main() -> int:
                 }
             )
 
+    n_jobs = len(runs_to_execute)
+    worker_count = resolve_worker_count(args.workers, n_jobs)
+
     print(f"[*] Results will be saved to: {output_dir}")
-    print(f"[*] Generated {len(runs_to_execute)} total run configurations.")
-    print(f"[*] Execution mode: {'PARALLEL' if args.parallel else 'SEQUENTIAL'}")
+    print(f"[*] Generated {n_jobs} total run configurations.")
+    if args.parallel:
+        print(
+            f"[*] Execution mode: PARALLEL (ProcessPoolExecutor, "
+            f"{worker_count} worker process{'es' if worker_count != 1 else ''}, "
+            f"PID {os.getpid()} parent)"
+        )
+    else:
+        print(f"[*] Execution mode: SEQUENTIAL (single process, PID {os.getpid()})")
     print("=" * 60)
 
     results_key: dict[str, Any] = {
@@ -205,7 +215,7 @@ def main() -> int:
     all_results: dict[str, Any] = {}
     logs: list[str] = []
 
-    def _process_result(run: dict[str, Any], res: dict[str, Any]) -> None:
+    def _store_success(run: dict[str, Any], res: dict[str, Any]) -> None:
         name = run["name"]
         results_key["runs"][name] = {
             "status": res["status"],
@@ -224,6 +234,9 @@ def main() -> int:
         all_results[name] = res.copy()
         logs.append(f"[+] Completed: {name} in {res['elapsed_seconds']:.2f}s")
 
+    def _store_failure(run: dict[str, Any], exc: Exception) -> None:
+        results_key["runs"][run["name"]] = {"status": "failed", "error": str(exc)}
+
     submit_kwargs = [
         (
             run["steps"],
@@ -239,28 +252,23 @@ def main() -> int:
     ]
 
     if args.parallel:
-        with ThreadPoolExecutor() as executor:
-            futures = {
-                executor.submit(run_single_simulation, *kwargs): run
-                for run, kwargs in zip(runs_to_execute, submit_kwargs, strict=True)
-            }
-            for future in as_completed(futures):
-                run = futures[future]
-                name = run["name"]
-                try:
-                    _process_result(run, future.result())
-                except Exception as e:
-                    print(f"[-] Run '{name}' raised an unhandled exception: {e}")
-                    results_key["runs"][name] = {"status": "failed", "error": str(e)}
+        run_process_pool(
+            run_single_simulation,
+            submit_kwargs,
+            runs_to_execute,
+            max_workers=worker_count,
+            on_success=_store_success,
+            on_failure=_store_failure,
+        )
     else:
         for run, kwargs in zip(runs_to_execute, submit_kwargs, strict=True):
             name = run["name"]
             try:
-                _process_result(run, run_single_simulation(*kwargs))
+                _store_success(run, run_single_simulation(*kwargs))
                 print(f"[+] Completed: {name}")
             except Exception as e:
+                _store_failure(run, e)
                 print(f"[-] Run '{name}' failed: {e}")
-                results_key["runs"][name] = {"status": "failed", "error": str(e)}
 
     total_elapsed = time.time() - start_time
     print("=" * 60)
@@ -288,7 +296,8 @@ def main() -> int:
 
     print("\n=== Fire Ecology Baselines Parameter Scan Summary ===")
     print(
-        f"{'Run Name':<55} | {'Status':<10} | {'Time (s)':<8} | {'A2 Burned':<10} | {'A2 Cost':<10}"
+        f"{'Run Name':<55} | {'Status':<10} | {'Time (s)':<8} | "
+        f"{'A2 Burned':<10} | {'A2 Cost':<10}"
     )
     print("-" * 105)
     for name, run_res in results_key["runs"].items():

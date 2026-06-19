@@ -50,6 +50,8 @@ class ComparisonConfig:
     n_drones: int = 10
     n_cameras: int = 3
     opir_cadence: int = 5
+    base_ignition_rate: float = 0.0001
+    weather_volatility: float = 1.0
     include_a4: bool = True
     max_thermal_dim: int | None = None
 
@@ -71,15 +73,18 @@ def _build_cameras(config: ComparisonConfig) -> list[CameraTower]:
     return cameras
 
 
-def _evolve_weather(time_step: int, rng: np.random.Generator) -> WeatherState:
+def _evolve_weather(
+    time_step: int, rng: np.random.Generator, volatility: float = 1.0
+) -> WeatherState:
     """Deterministic weather evolution (same as adapter)."""
     phase = 2.0 * np.pi * time_step / 200.0
+    v = volatility
     return WeatherState(
-        temperature=25.0 + 10.0 * np.sin(phase) + float(rng.normal(0, 2)),
-        humidity=float(np.clip(0.4 + 0.2 * np.cos(phase) + rng.normal(0, 0.05), 0, 1)),
-        wind_speed=max(0.0, 5.0 + 3.0 * np.sin(phase * 0.7) + float(rng.normal(0, 1))),
+        temperature=25.0 + 10.0 * np.sin(phase) + float(rng.normal(0, 2 * v)),
+        humidity=float(np.clip(0.4 + 0.2 * np.cos(phase) + rng.normal(0, 0.05 * v), 0, 1)),
+        wind_speed=max(0.0, 5.0 + 3.0 * np.sin(phase * 0.7) + float(rng.normal(0, 1 * v))),
         wind_direction=float((180.0 + 90.0 * np.sin(phase * 0.3)) % 360),
-        precipitation=max(0.0, float(rng.exponential(0.5) if rng.random() < 0.1 else 0.0)),
+        precipitation=max(0.0, float(rng.exponential(0.5 * v) if rng.random() < 0.1 else 0.0)),
     )
 
 
@@ -158,9 +163,11 @@ def run_comparison(config: ComparisonConfig | None = None) -> list[ComparisonRes
         total_cost = 0.0
 
         for step in range(config.steps):
-            weather = _evolve_weather(step, weather_rng)
+            weather = _evolve_weather(step, weather_rng, config.weather_volatility)
             grid.step(weather, step, rng)
-            grid.stochastic_ignition(weather, step, rng)
+            grid.stochastic_ignition(
+                weather, step, rng, base_rate=config.base_ignition_rate
+            )
 
             result = arch.step(grid, weather, opir, step, rng)
             total_det += len(result.detections)

@@ -127,10 +127,13 @@ class FireGrid:
         return False
 
     def stochastic_ignition(
-        self, weather: WeatherState, time_step: int, rng: np.random.Generator
+        self,
+        weather: WeatherState,
+        time_step: int,
+        rng: np.random.Generator,
+        base_rate: float = 0.0001,
     ) -> list[tuple[int, int]]:
         """Generate random ignitions from lightning or human causes."""
-        base_rate = 0.0001
         fwi_factor = weather.fire_weather_index / 10.0
         ignition_rate = base_rate * (1.0 + fwi_factor)
 
