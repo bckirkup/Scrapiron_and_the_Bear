@@ -1,0 +1,30 @@
+{
+  "output_directory": "fire_ecology_baselines_results",
+  "steps": 800,
+  "seeds": [42, 43, 44],
+  "grid_rows": 20,
+  "grid_cols": 20,
+  "factors": {
+    "deployment_phase": ["phase_0", "phase_1", "phase_2", "phase_3"],
+    "sensor_dropout": ["0%", "10%", "20%", "30%", "50%"],
+    "drone_fleet_size": [5, 10, 15, 30],
+    "ignition_rate": ["low", "medium", "high"],
+    "weather_volatility": ["low", "medium", "high"]
+  },
+  "phases": {
+    "phase_0": {"n_cameras": 3},
+    "phase_1": {"n_cameras": 8},
+    "phase_2": {"n_cameras": 12},
+    "phase_3": {"n_cameras": 12}
+  },
+  "ignition_rates": {
+    "low": 0.000025,
+    "medium": 0.0001,
+    "high": 0.0004
+  },
+  "weather_volatility": {
+    "low": 0.5,
+    "medium": 1.0,
+    "high": 2.0
+  }
+}
