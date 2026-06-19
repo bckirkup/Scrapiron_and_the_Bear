@@ -41,6 +41,10 @@ class FireEcologyAdapter(DomainAdapter):
         opir_cadence: int = 5,
         seed: int = 42,
         max_thermal_dim: int | None = None,
+        base_ignition_rate: float = 0.0001,
+        weather_volatility: float = 1.0,
+        n_drones: int = 0,
+        suppression_effectiveness: float = 0.99,
     ) -> None:
         self.rng = np.random.default_rng(seed)
         self._grid = FireGrid(rows=grid_rows, cols=grid_cols)
@@ -49,6 +53,10 @@ class FireEcologyAdapter(DomainAdapter):
         self._max_thermal_dim = (
             max_thermal_dim if max_thermal_dim is not None else self.DEFAULT_THERMAL_DIM
         )
+        self._base_ignition_rate = base_ignition_rate
+        self._weather_volatility = weather_volatility
+        self._n_drones = n_drones
+        self._suppression_effectiveness = suppression_effectiveness
 
         self._cameras = self._place_cameras(n_cameras)
         self._weather_stations = self._place_weather_stations(n_weather_stations)
@@ -131,10 +139,23 @@ class FireEcologyAdapter(DomainAdapter):
         """Advance fire simulation and update all sensor streams."""
         self._current_step = time_step
         self._evolve_weather(time_step)
-        self._grid.stochastic_ignition(self._weather, time_step, self.rng)
+        self._grid.stochastic_ignition(
+            self._weather, time_step, self.rng, base_rate=self._base_ignition_rate
+        )
         self._grid.step(self._weather, time_step, self.rng)
         self._update_fuel_moisture()
         self._update_streams(time_step)
+
+    def dispatch_drone_suppression(self, n_correct_reports: int) -> int:
+        """Dispatch drones to suppress fires after verified agent detections."""
+        if self._n_drones <= 0 or n_correct_reports <= 0:
+            return 0
+        max_dispatches = min(self._n_drones, n_correct_reports)
+        suppressed = 0
+        for row, col in self._grid.active_fire_cells()[:max_dispatches]:
+            if self._grid.suppress(row, col, self._suppression_effectiveness):
+                suppressed += 1
+        return suppressed
 
     def get_ground_truth(self, time_step: int) -> bool:
         """A fire event is active if any cells are currently burning."""
@@ -180,15 +201,17 @@ class FireEcologyAdapter(DomainAdapter):
         }
 
     def _evolve_weather(self, time_step: int) -> None:
-        """Simple sinusoidal weather with noise."""
+        """Sinusoidal weather with noise scaled by weather_volatility."""
         phase = 2.0 * np.pi * time_step / 200.0
+        v = self._weather_volatility
         self._weather = WeatherState(
-            temperature=25.0 + 10.0 * np.sin(phase) + float(self.rng.normal(0, 2)),
-            humidity=float(np.clip(0.4 + 0.2 * np.cos(phase) + self.rng.normal(0, 0.05), 0, 1)),
-            wind_speed=max(0.0, 5.0 + 3.0 * np.sin(phase * 0.7) + float(self.rng.normal(0, 1))),
+            temperature=25.0 + 10.0 * np.sin(phase) + float(self.rng.normal(0, 2 * v)),
+            humidity=float(np.clip(0.4 + 0.2 * np.cos(phase) + self.rng.normal(0, 0.05 * v), 0, 1)),
+            wind_speed=max(0.0, 5.0 + 3.0 * np.sin(phase * 0.7) + float(self.rng.normal(0, 1 * v))),
             wind_direction=float((180.0 + 90.0 * np.sin(phase * 0.3)) % 360),
             precipitation=max(
-                0.0, float(self.rng.exponential(0.5) if self.rng.random() < 0.1 else 0.0)
+                0.0,
+                float(self.rng.exponential(0.5 * v) if self.rng.random() < 0.1 else 0.0),
             ),
         )
 
@@ -238,6 +261,11 @@ class FireEcologyAdapter(DomainAdapter):
 
         indices = np.linspace(0, full_grid.size - 1, dim, dtype=int)
         return full_grid[indices]
+
+    @property
+    def n_drones(self) -> int:
+        """Operational drone fleet size for post-detection suppression."""
+        return self._n_drones
 
     @property
     def fire_grid(self) -> FireGrid:

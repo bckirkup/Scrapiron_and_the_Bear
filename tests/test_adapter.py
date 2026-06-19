@@ -84,3 +84,29 @@ class TestFireEcologyAdapter:
             adapter.step(step)
             temps.append(adapter.weather.temperature)
         assert len(set(round(t, 2) for t in temps)) > 1
+
+    def test_base_ignition_rate_increases_burned_area(self) -> None:
+        low = FireEcologyAdapter(
+            grid_rows=10, grid_cols=10, seed=42, base_ignition_rate=0.00001, n_drones=0
+        )
+        high = FireEcologyAdapter(
+            grid_rows=10, grid_cols=10, seed=42, base_ignition_rate=0.01, n_drones=0
+        )
+        for step in range(100):
+            low.step(step)
+            high.step(step)
+        assert high.fire_grid.burned_area() >= low.fire_grid.burned_area()
+
+    def test_drone_suppression_reduces_active_fires(self) -> None:
+        adapter = FireEcologyAdapter(
+            grid_rows=10, grid_cols=10, seed=7, base_ignition_rate=0.05, n_drones=5
+        )
+        for step in range(20):
+            adapter.step(step)
+        before = len(adapter.fire_grid.active_fire_cells())
+        if before == 0:
+            adapter.fire_grid.ignite(5, 5, 0)
+            before = len(adapter.fire_grid.active_fire_cells())
+        suppressed = adapter.dispatch_drone_suppression(before)
+        assert suppressed >= 0
+        assert len(adapter.fire_grid.active_fire_cells()) <= before

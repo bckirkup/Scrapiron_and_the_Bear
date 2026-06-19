@@ -32,6 +32,33 @@ from tattletots.telemetry.cost_accounting import CostAccumulator
 from fire_ecology.adapter.fire_adapter import FireEcologyAdapter
 from fire_ecology.metrics.fire_metrics import FireMetrics, StepMetrics
 
+_FIRE_ADAPTER_KEYS = (
+    "grid_rows",
+    "grid_cols",
+    "seed",
+    "n_cameras",
+    "n_weather_stations",
+    "n_fuel_sensors",
+    "opir_cadence",
+    "max_thermal_dim",
+    "base_ignition_rate",
+    "weather_volatility",
+    "n_drones",
+)
+
+
+def _fire_adapter_kwargs(domain_cfg: dict) -> dict[str, object]:
+    """Map domain config JSON to FireEcologyAdapter constructor kwargs."""
+    kwargs: dict[str, object] = {
+        "grid_rows": domain_cfg.get("grid_rows", 20),
+        "grid_cols": domain_cfg.get("grid_cols", 20),
+        "seed": domain_cfg.get("seed", 42),
+    }
+    for key in _FIRE_ADAPTER_KEYS:
+        if key in domain_cfg and key not in kwargs:
+            kwargs[key] = domain_cfg[key]
+    return kwargs
+
 
 def main(argv: list[str] | None = None) -> int:
     """Run integrated FireEcology + TattleTots simulation."""
@@ -59,11 +86,11 @@ def main(argv: list[str] | None = None) -> int:
             raw = json.load(f)
         sim_config = SimulationConfig(**raw.get("simulation", {}))
         domain_cfg = raw.get("domain", {})
-        grid_rows = domain_cfg.get("grid_rows", 20)
-        grid_cols = domain_cfg.get("grid_cols", 20)
+        kwargs = _fire_adapter_kwargs(domain_cfg)
+        grid_rows = int(kwargs["grid_rows"])
+        grid_cols = int(kwargs["grid_cols"])
         steps = domain_cfg.get("steps", args.steps)
-        seed = domain_cfg.get("seed", args.seed)
-        max_thermal_dim = domain_cfg.get("max_thermal_dim", None)
+        seed = int(kwargs["seed"])
     else:
         sim_config = SimulationConfig(
             initial_population=args.population,
@@ -74,23 +101,16 @@ def main(argv: list[str] | None = None) -> int:
         grid_cols = args.grid_cols
         steps = args.steps
         seed = args.seed
-        max_thermal_dim = None
         domain_cfg = {
             "grid_rows": grid_rows,
             "grid_cols": grid_cols,
             "steps": steps,
             "seed": seed,
         }
+        kwargs = _fire_adapter_kwargs(domain_cfg)
 
     # Build domain adapter
-    adapter_kwargs: dict[str, object] = {
-        "grid_rows": grid_rows,
-        "grid_cols": grid_cols,
-        "seed": seed,
-    }
-    if max_thermal_dim is not None:
-        adapter_kwargs["max_thermal_dim"] = max_thermal_dim
-    adapter = FireEcologyAdapter(**adapter_kwargs)  # type: ignore[arg-type]
+    adapter = FireEcologyAdapter(**kwargs)  # type: ignore[arg-type]
 
     # Build TattleTots world
     world = World(config=sim_config)
@@ -108,6 +128,8 @@ def main(argv: list[str] | None = None) -> int:
     print("=== FireEcology + TattleTots Integration ===")
     print(
         f"  Steps: {steps}, Grid: {grid_rows}x{grid_cols}, "
+        f"Drones: {adapter.n_drones}, "
+        f"Ignition: {domain_cfg.get('base_ignition_rate', 0.0001)}, "
         f"Population: {sim_config.initial_population}, Seed: {seed}"
     )
     print()
@@ -119,6 +141,9 @@ def main(argv: list[str] | None = None) -> int:
 
         # Advance agent ecology
         record = world.step()
+
+        if record.correct_reports > 0:
+            adapter.dispatch_drone_suppression(record.correct_reports)
 
         if args.verbose and step % 50 == 0:
             active = adapter.fire_grid.active_fire_cells()
