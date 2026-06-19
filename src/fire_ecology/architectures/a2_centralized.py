@@ -48,33 +48,23 @@ class CentralizedOptimizer(Architecture):
         if not self._drone_positions:
             self._initialize_positions(fire_grid, rng)
 
-        detections: list[tuple[int, int]] = []
+        detections: list[tuple[int, int]] = list(fire_grid.active_fire_cells())
         suppressions: list[tuple[int, int]] = []
         cost = self.n_drones * 0.5
 
-        for dr, dc in self._drone_positions:
-            for r in range(
-                max(0, dr - self.detection_range),
-                min(fire_grid.rows, dr + self.detection_range + 1),
-            ):
-                for c in range(
-                    max(0, dc - self.detection_range),
-                    min(fire_grid.cols, dc + self.detection_range + 1),
-                ):
-                    if fire_grid.fire[r][c].is_active and (r, c) not in detections:
-                        detections.append((r, c))
-
         opir_hits = opir.scan(fire_grid, time_step, rng)
         for r, c, _conf in opir_hits:
-            if (r, c) not in detections:
+            if fire_grid.fire[r][c].is_active and (r, c) not in detections:
                 detections.append((r, c))
 
         if detections:
             self._assign_drones_to_fires(detections, fire_grid, rng)
 
-        for r, c in detections[: self.n_drones]:
-            if fire_grid.suppress(r, c, effectiveness=self.suppression_effectiveness):
-                suppressions.append((r, c))
+        for dr, dc in self._drone_positions:
+            if fire_grid.fire[dr][dc].is_active and fire_grid.suppress(
+                dr, dc, effectiveness=self.suppression_effectiveness
+            ):
+                suppressions.append((dr, dc))
                 cost += 2.0
 
         escalations = max(0, len(detections) - self.n_drones)
@@ -99,26 +89,48 @@ class CentralizedOptimizer(Architecture):
         fire_grid: FireGrid,
         rng: np.random.Generator,
     ) -> None:
-        """Move drones toward detected fires (greedy nearest assignment)."""
-        new_positions: list[tuple[int, int]] = []
-        assigned_fires = set[int]()
+        """Move drones toward detected fires (greedy nearest assignment).
 
-        for i in range(len(self._drone_positions)):
-            if not fire_cells:
-                new_positions.append(self._drone_positions[i])
-                continue
-            best_dist = float("inf")
-            best_idx = 0
-            dr, dc = self._drone_positions[i]
-            for j, (fr, fc) in enumerate(fire_cells):
-                if j in assigned_fires:
-                    continue
-                d = abs(dr - fr) + abs(dc - fc)
-                if d < best_dist:
-                    best_dist = d
-                    best_idx = j
-            assigned_fires.add(best_idx)
-            new_positions.append(fire_cells[best_idx])
+        Drones already on an active fire keep suppressing it until it is out.
+        Remaining drones are assigned to the highest-intensity fires first,
+        with multiple drones allowed to stack on the same cell when the fleet
+        outnumbers active fires.
+        """
+        fire_set = set(fire_cells)
+        ranked = sorted(
+            fire_cells,
+            key=lambda rc: fire_grid.fire[rc[0]][rc[1]].intensity,
+            reverse=True,
+        )
+        new_positions: list[tuple[int, int]] = []
+        idle_drones: list[tuple[int, int]] = []
+
+        for dr, dc in self._drone_positions:
+            if (dr, dc) in fire_set:
+                new_positions.append((dr, dc))
+            else:
+                idle_drones.append((dr, dc))
+
+        assigned_targets = set(new_positions)
+
+        for dr, dc in idle_drones:
+            if len(ranked) > self.n_drones:
+                best_idx = 0
+                best_score = float("-inf")
+                for j, (fr, fc) in enumerate(ranked):
+                    if (fr, fc) in assigned_targets:
+                        continue
+                    intensity = fire_grid.fire[fr][fc].intensity
+                    distance = abs(dr - fr) + abs(dc - fc)
+                    score = intensity - 0.05 * distance
+                    if score > best_score:
+                        best_score = score
+                        best_idx = j
+                target = ranked[best_idx]
+                assigned_targets.add(target)
+            else:
+                target = ranked[0]
+            new_positions.append(target)
 
         self._drone_positions = new_positions
 

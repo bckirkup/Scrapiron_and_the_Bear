@@ -56,7 +56,24 @@ class TestCentralizedOptimizer:
         grid, weather, opir, rng = _setup()
         arch = CentralizedOptimizer(n_drones=5, detection_range=5)
         result = arch.step(grid, weather, opir, time_step=0, rng=rng)
-        assert len(result.detections) >= 0
+        assert len(result.detections) >= 1
+
+    def test_suppresses_active_fire(self) -> None:
+        grid, weather, opir, rng = _setup()
+        arch = CentralizedOptimizer(n_drones=5, suppression_effectiveness=0.99)
+        for step in range(10):
+            result = arch.step(grid, weather, opir, time_step=step, rng=rng)
+        assert len(result.suppressions) > 0 or len(grid.active_fire_cells()) == 0
+
+    def test_containment_beats_detection_cap(self) -> None:
+        """Fleet stacks on hotspots and suppresses at assigned drone positions."""
+        grid, weather, opir, rng = _setup()
+        arch = CentralizedOptimizer(n_drones=10, suppression_effectiveness=0.99)
+        for step in range(30):
+            grid.step(weather, step + 1, rng)
+            arch.step(grid, weather, opir, time_step=step, rng=rng)
+        assert grid.burned_area() < 50
+        assert len(grid.active_fire_cells()) == 0
 
     def test_reset_clears_positions(self) -> None:
         grid, weather, opir, rng = _setup()
