@@ -55,37 +55,37 @@ src/fire_ecology/
 ## Setup
 
 ```bash
-# Install with dev dependencies
+pip install -e domain-runner[dev]
+pip install -e TattleTots[dev]   # only for --layer tattletots
 pip install -e ".[dev]"
-
-# Install pre-commit hooks
 pre-commit install
 ```
 
 ## Development Commands
 
 ```bash
-# Run all tests
 pytest
-
-# Run smoke tests only
 pytest -m smoke
-
-# Lint and format
 ruff check src/ tests/
-ruff format src/ tests/
-
-# Type check
 mypy src/
 
-# Run simulation
-fire-ecology --steps 200 --verbose
-fire-ecology --steps 100 --json
+# Domain-only run (no TattleTots)
+fire-ecology sim --layer domain_only --steps 200 --verbose
+
+# Batch sweeps
+fire-ecology batch --config configs/batch_example.json
+
+# Integrated agent ecology
+fire-ecology sim --layer tattletots --config configs/tattletots_integration.json
 ```
 
 ## Integrated Mode (with TattleTots Agent Ecology)
 
-Run the full integration — domain generates sensor streams while TattleTots agents compress, escalate, evolve, and compete:
+```bash
+fire-ecology sim --layer tattletots --config configs/tattletots_integration.json --output results.json --verbose
+```
+
+Legacy wrapper:
 
 ```bash
 python scripts/run_with_tattletots.py \

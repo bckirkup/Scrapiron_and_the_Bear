@@ -21,6 +21,9 @@ class StepMetrics(BaseModel):
     suppressions: int = Field(default=0, ge=0)
     escalations: int = Field(default=0, ge=0)
     opir_rescues: int = Field(default=0, ge=0)
+    responses_dispatched: int = Field(default=0, ge=0)
+    responses_judged_necessary: int = Field(default=0, ge=0)
+    responses_judged_unnecessary: int = Field(default=0, ge=0)
     surveillance_cost: float = Field(default=0.0, ge=0.0)
     response_cost: float = Field(default=0.0, ge=0.0)
     damage_cost: float = Field(default=0.0, ge=0.0)
@@ -51,6 +54,8 @@ class FireMetrics(BaseModel):
     total_false_dispatches: int = Field(default=0, ge=0)
     total_opir_rescues: int = Field(default=0, ge=0)
     total_escalations: int = Field(default=0, ge=0)
+    total_responses_judged_necessary: int = Field(default=0, ge=0)
+    total_responses_judged_unnecessary: int = Field(default=0, ge=0)
     detection_latencies: list[int] = Field(default_factory=list)
     _detected_cells: set[tuple[int, int]] = PrivateAttr(default_factory=set)
 
@@ -62,6 +67,26 @@ class FireMetrics(BaseModel):
         self.total_false_dispatches += metrics.false_positives
         self.total_opir_rescues += metrics.opir_rescues
         self.total_escalations += metrics.escalations
+
+    def record_response_outcomes(
+        self,
+        *,
+        dispatched: int,
+        judged_necessary: int,
+        judged_unnecessary: int,
+        suppressions: int = 0,
+    ) -> None:
+        """Record post-dispatch responder judgments for the current step."""
+        if self.history:
+            last = self.history[-1]
+            last.responses_dispatched = dispatched
+            last.responses_judged_necessary = judged_necessary
+            last.responses_judged_unnecessary = judged_unnecessary
+            last.suppressions = suppressions
+        self.total_suppressions_attempted += dispatched
+        self.total_suppressions_successful += suppressions
+        self.total_responses_judged_necessary += judged_necessary
+        self.total_responses_judged_unnecessary += judged_unnecessary
 
     def record_detection_latency(self, latency: int) -> None:
         """Record the detection latency for a single fire event."""
@@ -99,6 +124,14 @@ class FireMetrics(BaseModel):
         return self.total_suppressions_successful / self.total_suppressions_attempted
 
     @property
+    def unnecessary_dispatch_rate(self) -> float:
+        """Fraction of dispatched responses judged unnecessary by the responder."""
+        dispatched = self.total_suppressions_attempted
+        if dispatched == 0:
+            return 0.0
+        return self.total_responses_judged_unnecessary / dispatched
+
+    @property
     def false_dispatch_rate(self) -> float:
         """Fraction of dispatches that were false alarms."""
         total = self.total_fires_detected + self.total_false_dispatches
@@ -124,6 +157,9 @@ class FireMetrics(BaseModel):
             "mean_detection_latency": self.mean_detection_latency,
             "suppression_success_rate": self.suppression_success_rate,
             "false_dispatch_rate": self.false_dispatch_rate,
+            "unnecessary_dispatch_rate": self.unnecessary_dispatch_rate,
+            "total_responses_judged_necessary": float(self.total_responses_judged_necessary),
+            "total_responses_judged_unnecessary": float(self.total_responses_judged_unnecessary),
             "opir_rescue_rate": self.opir_rescue_rate,
             "total_cost": self.total_cost,
             "total_fires_detected": float(self.total_fires_detected),

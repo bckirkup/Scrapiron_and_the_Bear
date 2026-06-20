@@ -6,6 +6,8 @@ model with drone Tots, competing architectures (A0-A4), and phased deployment sc
 
 ## Setup
 ```bash
+pip install -e domain-runner[dev]
+pip install -e TattleTots[dev]   # only for --layer tattletots
 pip install -e ".[dev]"
 pre-commit install
 ```
@@ -31,7 +33,8 @@ pytest
 ## Key Files
 | File | Purpose |
 |------|---------|
-| `src/fire_ecology/adapter/fire_adapter.py` | TattleTots DomainAdapter implementation |
+| `src/fire_ecology/adapter/fire_adapter.py` | TattleTots DomainAdapter + COP dispatch hooks |
+| `src/fire_ecology/runner.py` | domain-runner hooks (`FireDomainHooks`, `run_fire_simulation`) |
 | `src/fire_ecology/environment/fire.py` | Fire spread cellular automaton |
 | `src/fire_ecology/drones/drone_genome.py` | Heritable drone behavioral traits |
 | `src/fire_ecology/architectures/a2_centralized.py` | Strongest conventional competitor |

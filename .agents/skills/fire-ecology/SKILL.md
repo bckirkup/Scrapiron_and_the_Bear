@@ -7,21 +7,26 @@ description: Guide for developing and testing the FireEcology domain simulation 
 
 ## Setup
 ```bash
-cd /home/ubuntu/repos/Scrapiron_and_the_Bear
+pip install -e domain-runner[dev]
+pip install -e TattleTots[dev]   # only for --layer tattletots
 pip install -e ".[dev]"
 pre-commit install
 ```
 
 ## Running the Simulation
+
 ```bash
-# Quick test run
-fire-ecology --steps 50 --grid-rows 10 --grid-cols 10 --verbose
+# Domain physics only (no TattleTots required)
+fire-ecology sim --layer domain_only --steps 50 --grid-rows 10 --grid-cols 10 --verbose
 
-# Full simulation with JSON output
-fire-ecology --steps 400 --json
+# Batch sweeps
+fire-ecology batch --config configs/batch_example.json
 
-# Custom seed for reproducibility
-fire-ecology --steps 200 --seed 123 --verbose
+# Full agent ecology + COP dispatch
+fire-ecology sim --layer tattletots --config configs/tattletots_integration.json
+
+# Legacy quick run
+fire-ecology --steps 200 --verbose
 ```
 
 ## Testing
@@ -81,8 +86,10 @@ The adapter (`adapter/fire_adapter.py`) implements `DomainAdapter`:
 - `infer_report_location(stream_data, stream_labels)` → finds peak in thermal stream → maps to grid `(row, col)`
 - `score_relevance(signal, user)` → dot-product relevance
 - `compute_costs(...)` → surveillance + response + damage costs
+- `get_responder_user_id()` → user authorized for COP dispatch
+- `dispatch_and_judge_responses(targets, time_step)` → execute suppression, return outcomes
 
-**Note:** The integration loop uses `world.set_event_state(adapter.get_active_locations(step))` (not `set_ground_truth`). The engine verifies report correctness per-location.
+**Note:** The integration loop uses `world.set_event_state(adapter.get_active_locations(step))` (not `set_ground_truth`). The engine verifies report correctness per-location. Agents must not read `User.trust`.
 
 ### Baselines
 
@@ -94,6 +101,9 @@ Standalone baseline comparison files live in `baselines/`:
 ## Integrated Mode (Full Agent Ecology)
 
 ```bash
+fire-ecology sim --layer tattletots --config configs/tattletots_integration.json --output results.json --verbose
+
+# Legacy wrapper
 python scripts/run_with_tattletots.py \
     --config configs/tattletots_integration.json \
     --output results.json --verbose

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import numpy as np
+from tattletots.models.dispatch_target import DispatchTarget
+from tattletots.models.report import Report
 
 from fire_ecology.adapter.fire_adapter import FireEcologyAdapter
 from fire_ecology.environment.fire import FireGrid
@@ -124,3 +126,101 @@ class TestFireEcologyAdapter:
         assert len(adapter.fire_grid.active_fire_cells()) == 0
         thermal = adapter.get_streams()[0].current_data
         assert float(np.max(thermal)) > 0.0
+
+    def test_dispatch_and_judge_necessary_suppression(self) -> None:
+        adapter = FireEcologyAdapter(
+            grid_rows=10,
+            grid_cols=10,
+            n_drones=1,
+            suppression_effectiveness=0.99,
+        )
+        adapter.fire_grid.ignite(5, 5, 0)
+        users = adapter.get_users()
+        report = Report(
+            agent_id="agent-1",
+            target_user_id=users[1].id,
+            time_step=0,
+            signal_vector=np.ones(10),
+            confidence=0.9,
+            anomaly_score=2.0,
+            location=(5, 5),
+            verified=True,
+            correct=True,
+        )
+        outcomes = adapter.dispatch_and_judge_responses(
+            [
+                DispatchTarget(
+                    location=(5, 5),
+                    reports=[report],
+                    responder_user_id=adapter.get_responder_user_id(),
+                    cop_threat_level=2.0,
+                )
+            ],
+            0,
+        )
+        assert len(outcomes) == 1
+        assert outcomes[0].dispatched
+        assert outcomes[0].response_necessary
+
+    def test_dispatch_and_judge_unnecessary_without_fire(self) -> None:
+        adapter = FireEcologyAdapter(grid_rows=10, grid_cols=10, n_drones=1)
+        users = adapter.get_users()
+        report = Report(
+            agent_id="agent-1",
+            target_user_id=users[1].id,
+            time_step=0,
+            signal_vector=np.ones(10),
+            confidence=0.9,
+            anomaly_score=2.0,
+            location=(2, 2),
+            verified=True,
+            correct=True,
+        )
+        outcomes = adapter.dispatch_and_judge_responses(
+            [
+                DispatchTarget(
+                    location=(2, 2),
+                    reports=[report],
+                    responder_user_id=adapter.get_responder_user_id(),
+                    cop_threat_level=2.0,
+                )
+            ],
+            0,
+        )
+        assert len(outcomes) == 1
+        assert outcomes[0].dispatched
+        assert not outcomes[0].response_necessary
+
+    def test_dispatch_not_gated_by_report_correct(self) -> None:
+        adapter = FireEcologyAdapter(
+            grid_rows=10,
+            grid_cols=10,
+            n_drones=1,
+            suppression_effectiveness=0.99,
+        )
+        adapter.fire_grid.ignite(4, 4, 0)
+        users = adapter.get_users()
+        report = Report(
+            agent_id="agent-1",
+            target_user_id=users[1].id,
+            time_step=0,
+            signal_vector=np.ones(10),
+            confidence=0.9,
+            anomaly_score=2.0,
+            location=(4, 4),
+            verified=True,
+            correct=False,
+        )
+        outcomes = adapter.dispatch_and_judge_responses(
+            [
+                DispatchTarget(
+                    location=(4, 4),
+                    reports=[report],
+                    responder_user_id=adapter.get_responder_user_id(),
+                    cop_threat_level=2.0,
+                )
+            ],
+            0,
+        )
+        assert outcomes[0].dispatched
+        assert outcomes[0].response_necessary

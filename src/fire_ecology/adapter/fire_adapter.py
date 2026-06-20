@@ -8,8 +8,12 @@ from __future__ import annotations
 
 import numpy as np
 from numpy.typing import NDArray
+from tattletots.engine.response_judgment import judge_necessity
 from tattletots.interface.domain_adapter import DomainAdapter
+from tattletots.models.dispatch_target import DispatchTarget
 from tattletots.models.location import EventLocation
+from tattletots.models.report import Report
+from tattletots.models.response_outcome import ResponseOutcome
 from tattletots.models.stream import Stream, StreamType
 from tattletots.models.user import User
 
@@ -164,7 +168,11 @@ class FireEcologyAdapter(DomainAdapter):
         self._update_streams(time_step, fire_grid=fire_grid, rng=rng or self.rng)
 
     def dispatch_drone_suppression(self, n_correct_reports: int) -> int:
-        """Dispatch drones to suppress fires after verified agent detections."""
+        """Dispatch drones to suppress fires after verified agent detections.
+
+        Legacy count-based API; prefer ``dispatch_and_judge_responses`` for
+        location-targeted dispatch with post-dispatch judgment.
+        """
         if self._n_drones <= 0 or n_correct_reports <= 0:
             return 0
         max_dispatches = min(self._n_drones, n_correct_reports)
@@ -173,6 +181,74 @@ class FireEcologyAdapter(DomainAdapter):
             if self._grid.suppress(row, col, self._suppression_effectiveness):
                 suppressed += 1
         return suppressed
+
+    def get_responder_user_id(self) -> str:
+        """Fire Operations Chief authorizes suppression dispatch."""
+        for user in self._users:
+            if user.name == "Fire Operations Chief":
+                return user.id
+        return self._users[1].id if len(self._users) > 1 else self._users[0].id
+
+    def dispatch_and_judge_responses(
+        self,
+        targets: list[DispatchTarget],
+        time_step: int,
+    ) -> list[ResponseOutcome]:
+        """Suppress fires at COP-selected locations and judge responder necessity."""
+        outcomes: list[ResponseOutcome] = []
+        dispatches_remaining = self._n_drones
+        responder_id = self.get_responder_user_id()
+
+        for target in targets:
+            row, col = target.location
+            before = self._fire_severity(row, col)
+            dispatched = False
+            after = before
+
+            if self._n_drones > 0 and dispatches_remaining > 0:
+                self._grid.suppress(row, col, self._suppression_effectiveness)
+                after = self._fire_severity(row, col)
+                dispatched = True
+                dispatches_remaining -= 1
+
+            problem, mitigated, necessary = judge_necessity(before, after)
+            linked_reports = target.reports or [
+                Report(
+                    agent_id="",
+                    target_user_id=responder_id,
+                    time_step=time_step,
+                    signal_vector=np.array([]),
+                    confidence=0.0,
+                    anomaly_score=0.0,
+                    location=target.location,
+                    verified=True,
+                )
+            ]
+            for report in linked_reports:
+                outcome = ResponseOutcome(
+                    agent_id=report.agent_id,
+                    responder_user_id=responder_id,
+                    time_step=time_step,
+                    location=target.location,
+                    response_type="suppression",
+                    dispatched=dispatched,
+                    problem_severity_before=before,
+                    problem_severity_after=after,
+                    problem_present=problem,
+                    mitigated=mitigated,
+                    response_necessary=necessary,
+                )
+                report.response_outcome = outcome
+                outcomes.append(outcome)
+
+        return outcomes
+
+    def _fire_severity(self, row: int, col: int) -> float:
+        """Fire intensity at a grid cell (0 if not burning)."""
+        if row < 0 or col < 0 or row >= self._grid.rows or col >= self._grid.cols:
+            return 0.0
+        fs = self._grid.fire[row][col]
+        return float(fs.intensity) if fs.is_active else 0.0
 
     def get_ground_truth(self, time_step: int) -> bool:
         """A fire event is active if any cells are currently burning."""

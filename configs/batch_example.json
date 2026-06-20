@@ -1,0 +1,22 @@
+{
+  "layer": "domain_only",
+  "domain": {
+    "grid_rows": 20,
+    "grid_cols": 20,
+    "seed": 42,
+    "steps": 200,
+    "n_drones": 0
+  },
+  "runs": [
+    {
+      "name": "baseline_seed_42",
+      "config_overrides": {}
+    },
+    {
+      "name": "high_ignition",
+      "config_overrides": {
+        "base_ignition_rate": 0.001
+      }
+    }
+  ]
+}
