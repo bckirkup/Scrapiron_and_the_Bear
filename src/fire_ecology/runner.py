@@ -5,11 +5,11 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from domain_runner.batch import run_batch as execute_batch
 from domain_runner.config import deep_merge, load_json
-from domain_runner.layer import DomainOnlyLayer
+from domain_runner.layer import DomainOnlyLayer, SimulationLayer
 from domain_runner.single import print_result_summary, run_simulation_timed
 from domain_runner.types import RunContext, SimulationResult
 
@@ -94,7 +94,7 @@ class FireDomainHooks:
         )
 
     def build_adapter(self, domain_config: dict[str, Any]) -> FireEcologyAdapter:
-        return FireEcologyAdapter(**adapter_kwargs(domain_config))  # type: ignore[arg-type]
+        return FireEcologyAdapter(**adapter_kwargs(domain_config))
 
     def print_header(self, adapter: FireEcologyAdapter, run: RunContext) -> None:
         self._layer_name = run.layer
@@ -188,7 +188,7 @@ class FireDomainHooks:
             json.dump(result.to_dict(), f, indent=2)
 
 
-def resolve_layer(name: str):
+def resolve_layer(name: str) -> SimulationLayer:
     if name in ("domain_only", "domain", "none"):
         return DomainOnlyLayer()
     if name in ("tattletots", "tots"):
@@ -271,12 +271,15 @@ def run_fire_batch(
     default: dict[str, Any] = {"domain": dict(_DEFAULT_DOMAIN)}
     if "simulation" in batch:
         default["simulation"] = batch["simulation"]
-    return execute_batch(
-        batch,
-        run_fire_batch_entry,
-        output_dir=out,
-        default_config=default,
-        parallel=parallel,
-        workers=workers,
-        verbose=verbose,
+    return cast(
+        dict[str, Any],
+        execute_batch(
+            batch,
+            run_fire_batch_entry,
+            output_dir=out,
+            default_config=default,
+            parallel=parallel,
+            workers=workers,
+            verbose=verbose,
+        ),
     )
