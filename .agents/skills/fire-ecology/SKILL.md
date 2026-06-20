@@ -84,7 +84,7 @@ The adapter (`adapter/fire_adapter.py`) implements `DomainAdapter`:
 - `get_ground_truth(time_step)` → True if any cell is burning
 - `get_active_locations(time_step)` → returns `(row, col)` of all burning cells
 - `infer_report_location(stream_data, stream_labels)` → finds peak in thermal stream → maps to grid `(row, col)`
-- `score_relevance(signal, user)` → dot-product relevance
+- `score_relevance(signal, user)` → band-aligned role relevance via `tattletots.engine.relevance`
 - `compute_costs(...)` → surveillance + response + damage costs
 - `get_responder_user_id()` → user authorized for COP dispatch
 - `dispatch_and_judge_responses(targets, time_step)` → execute suppression, return outcomes

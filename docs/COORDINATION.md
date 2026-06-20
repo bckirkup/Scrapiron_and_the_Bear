@@ -46,6 +46,8 @@ fire-ecology batch --config configs/batch_example.json
 
 ### Integrated (domain + TattleTots agent ecology + COP dispatch)
 
+COP fusion uses `adapter.score_relevance()` with band-aligned role weighting (see TattleTots `engine/relevance.py`). Requires a current TattleTots install (`pip install -e ../TattleTots[dev]` or `install_workspace.ps1`).
+
 ```bash
 fire-ecology sim --layer tattletots --config configs/tattletots_integration.json --output integrated_results.json --verbose
 

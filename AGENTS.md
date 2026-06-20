@@ -33,7 +33,7 @@ pytest
 ## Key Files
 | File | Purpose |
 |------|---------|
-| `src/fire_ecology/adapter/fire_adapter.py` | TattleTots DomainAdapter + COP dispatch hooks |
+| `src/fire_ecology/adapter/fire_adapter.py` | TattleTots DomainAdapter + COP dispatch hooks (`score_relevance` → band alignment) |
 | `src/fire_ecology/runner.py` | domain-runner hooks (`FireDomainHooks`, `run_fire_simulation`) |
 | `src/fire_ecology/environment/fire.py` | Fire spread cellular automaton |
 | `src/fire_ecology/drones/drone_genome.py` | Heritable drone behavioral traits |
