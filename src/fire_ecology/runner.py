@@ -109,7 +109,9 @@ class FireDomainHooks:
     def on_step(self, adapter: FireEcologyAdapter, step: int, layer_events: dict[str, Any]) -> None:
         active = adapter.fire_grid.active_fire_cells()
         burned = adapter.fire_grid.burned_area()
-        self._metrics.record_detections_from_grid([(r, c) for r, c in active], adapter.fire_grid, step)
+        self._metrics.record_detections_from_grid(
+            [(r, c) for r, c in active], adapter.fire_grid, step
+        )
 
         if "cost_dict" in layer_events:
             costs = layer_events["cost_dict"]
@@ -141,7 +143,9 @@ class FireDomainHooks:
                 suppressions=outcome_counts.get("responses_judged_necessary", 0),
             )
 
-    def should_stop(self, adapter: FireEcologyAdapter, step: int, layer_events: dict[str, Any]) -> bool:
+    def should_stop(
+        self, adapter: FireEcologyAdapter, step: int, layer_events: dict[str, Any]
+    ) -> bool:
         return bool(layer_events.get("stop"))
 
     def print_step(
@@ -163,7 +167,9 @@ class FireDomainHooks:
         else:
             print(f"  Step {step:4d}: fires={len(active)} burned={adapter.fire_grid.burned_area()}")
 
-    def summarize(self, adapter: FireEcologyAdapter, layer_metrics: dict[str, Any]) -> dict[str, Any]:
+    def summarize(
+        self, adapter: FireEcologyAdapter, layer_metrics: dict[str, Any]
+    ) -> dict[str, Any]:
         summary = dict(self._metrics.summary())
         if "telemetry_summary" in layer_metrics:
             summary["ecology"] = layer_metrics["telemetry_summary"]

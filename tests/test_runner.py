@@ -27,7 +27,10 @@ class TestFireRunner:
     def test_load_run_context_from_cli_overrides(self) -> None:
         hooks = FireDomainHooks()
         run = hooks.load_run_context(
-            cli_overrides={"domain": {"steps": 5, "grid_rows": 6, "grid_cols": 6}, "layer": "domain_only"}
+            cli_overrides={
+                "domain": {"steps": 5, "grid_rows": 6, "grid_cols": 6},
+                "layer": "domain_only",
+            }
         )
         assert run.steps == 5
         assert run.layer == "domain_only"
