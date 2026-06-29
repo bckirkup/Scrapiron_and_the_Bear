@@ -87,7 +87,7 @@ class TestFireEcologyAdapter:
         for step in range(20):
             adapter.step(step)
             temps.append(adapter.weather.temperature)
-        assert len(set(round(t, 2) for t in temps)) > 1
+        assert len({round(t, 2) for t in temps}) > 1
 
     def test_base_ignition_rate_increases_burned_area(self) -> None:
         low = FireEcologyAdapter(

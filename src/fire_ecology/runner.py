@@ -144,7 +144,10 @@ class FireDomainHooks:
             )
 
     def should_stop(
-        self, adapter: FireEcologyAdapter, step: int, layer_events: dict[str, Any]
+        self,
+        _adapter: FireEcologyAdapter,
+        _step: int,
+        layer_events: dict[str, Any],
     ) -> bool:
         return bool(layer_events.get("stop"))
 
@@ -168,7 +171,7 @@ class FireDomainHooks:
             print(f"  Step {step:4d}: fires={len(active)} burned={adapter.fire_grid.burned_area()}")
 
     def summarize(
-        self, adapter: FireEcologyAdapter, layer_metrics: dict[str, Any]
+        self, _adapter: FireEcologyAdapter, layer_metrics: dict[str, Any]
     ) -> dict[str, Any]:
         summary = dict(self._metrics.summary())
         if "telemetry_summary" in layer_metrics:

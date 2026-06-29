@@ -79,39 +79,8 @@ class FireGrid:
 
     def step(self, weather: WeatherState, time_step: int, rng: np.random.Generator) -> int:
         """Advance fire dynamics by one step. Returns count of newly ignited cells."""
-        newly_ignited = 0
-        spread_candidates: list[tuple[int, int]] = []
-
-        for r in range(self.rows):
-            for c in range(self.cols):
-                fs = self.fire[r][c]
-                if fs.state == CellFireState.BURNING:
-                    fs.burn_duration += 1
-                    fuel_remaining = self.fuel[r][c].fuel_load
-                    if fuel_remaining <= 0.01 or fs.burn_duration > 10:
-                        fs.state = CellFireState.SMOLDERING
-                    else:
-                        self.fuel[r][c].fuel_load = max(0.0, fuel_remaining - 0.1 * fs.intensity)
-                        for dr, dc in _NEIGHBORS:
-                            nr, nc = r + dr, c + dc
-                            if self._in_bounds(nr, nc):
-                                spread_candidates.append((nr, nc))
-                elif fs.state == CellFireState.SMOLDERING:
-                    fs.burn_duration += 1
-                    if fs.burn_duration > 15:
-                        fs.state = CellFireState.BURNED_OUT
-
-        for nr, nc in spread_candidates:
-            if self.fire[nr][nc].state != CellFireState.UNBURNED:
-                continue
-            if not self.terrain[nr][nc].is_burnable:
-                continue
-            prob = self._spread_probability(nr, nc, weather)
-            if rng.random() < prob:
-                self.ignite(nr, nc, time_step)
-                newly_ignited += 1
-
-        return newly_ignited
+        spread_candidates = self._advance_burning_and_smoldering()
+        return self._spread_to_candidates(spread_candidates, weather, time_step, rng)
 
     def suppress(self, row: int, col: int, effectiveness: float = 0.8) -> bool:
         """Apply suppression to a burning cell. Returns True if fire extinguished."""
@@ -163,6 +132,59 @@ class FireGrid:
             for c in range(self.cols)
             if self.fire[r][c].state != CellFireState.UNBURNED
         )
+
+    def _advance_burning_and_smoldering(self) -> list[tuple[int, int]]:
+        spread_candidates: list[tuple[int, int]] = []
+        for r in range(self.rows):
+            for c in range(self.cols):
+                fs = self.fire[r][c]
+                if fs.state == CellFireState.BURNING:
+                    self._advance_burning_cell(r, c, fs, spread_candidates)
+                elif fs.state == CellFireState.SMOLDERING:
+                    self._advance_smoldering_cell(fs)
+        return spread_candidates
+
+    def _advance_burning_cell(
+        self,
+        row: int,
+        col: int,
+        fire_state: FireState,
+        spread_candidates: list[tuple[int, int]],
+    ) -> None:
+        fire_state.burn_duration += 1
+        fuel_remaining = self.fuel[row][col].fuel_load
+        if fuel_remaining <= 0.01 or fire_state.burn_duration > 10:
+            fire_state.state = CellFireState.SMOLDERING
+            return
+        self.fuel[row][col].fuel_load = max(0.0, fuel_remaining - 0.1 * fire_state.intensity)
+        for dr, dc in _NEIGHBORS:
+            nr, nc = row + dr, col + dc
+            if self._in_bounds(nr, nc):
+                spread_candidates.append((nr, nc))
+
+    def _advance_smoldering_cell(self, fire_state: FireState) -> None:
+        fire_state.burn_duration += 1
+        if fire_state.burn_duration > 15:
+            fire_state.state = CellFireState.BURNED_OUT
+
+    def _spread_to_candidates(
+        self,
+        spread_candidates: list[tuple[int, int]],
+        weather: WeatherState,
+        time_step: int,
+        rng: np.random.Generator,
+    ) -> int:
+        newly_ignited = 0
+        for nr, nc in spread_candidates:
+            if self.fire[nr][nc].state != CellFireState.UNBURNED:
+                continue
+            if not self.terrain[nr][nc].is_burnable:
+                continue
+            prob = self._spread_probability(nr, nc, weather)
+            if rng.random() < prob:
+                self.ignite(nr, nc, time_step)
+                newly_ignited += 1
+        return newly_ignited
 
     def _spread_probability(self, row: int, col: int, weather: WeatherState) -> float:
         """Compute spread probability for a target cell."""

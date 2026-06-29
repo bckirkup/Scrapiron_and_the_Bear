@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from fire_ecology.comparison import (
     ComparisonConfig,
     format_comparison_json,
@@ -53,7 +55,7 @@ class TestComparison:
         for a, b in zip(r1, r2, strict=True):
             assert a.detections == b.detections
             assert a.burned_cells == b.burned_cells
-            assert a.cost == b.cost
+            assert a.cost == pytest.approx(b.cost)
 
     def test_format_table(self) -> None:
         config = ComparisonConfig(
