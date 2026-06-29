@@ -56,7 +56,7 @@ class ComparisonConfig:
     max_thermal_dim: int | None = None
 
 
-def _build_fresh_grid(config: ComparisonConfig, rng: np.random.Generator) -> FireGrid:
+def _build_fresh_grid(config: ComparisonConfig, _rng: np.random.Generator) -> FireGrid:
     """Create and seed a fire grid with a deterministic initial ignition."""
     grid = FireGrid(rows=config.grid_rows, cols=config.grid_cols)
     mid_r, mid_c = config.grid_rows // 2, config.grid_cols // 2

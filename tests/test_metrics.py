@@ -81,7 +81,7 @@ class TestFireMetrics:
         metrics = FireMetrics()
         metrics.record_detections_from_grid([(2, 2)], grid, time_step=5)
         assert len(metrics.detection_latencies) == 1
-        assert metrics.detection_latencies[0] == 2  # 5 - 3 = 2
+        assert metrics.detection_latencies[0] == 2
 
     def test_record_detections_from_grid_deduplication(self) -> None:
         from fire_ecology.environment.fire import FireGrid
@@ -105,6 +105,5 @@ class TestFireMetrics:
         m2 = FireMetrics()
         m1.record_detections_from_grid([(0, 0)], grid, time_step=1)
         assert len(m1.detection_latencies) == 1
-        # m2 should NOT see m1's detected cells
         m2.record_detections_from_grid([(0, 0)], grid, time_step=2)
         assert len(m2.detection_latencies) == 1

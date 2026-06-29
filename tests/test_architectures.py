@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from fire_ecology.architectures.a0_human import HumanBaseline
 from fire_ecology.architectures.a1_camera_ml import CameraMLNetwork
@@ -118,4 +119,4 @@ class TestBodyPlanSuppression:
 
     def test_explicit_override_still_works(self) -> None:
         arch = CentralizedOptimizer(n_drones=5, suppression_effectiveness=0.99)
-        assert arch.suppression_effectiveness == 0.99
+        assert arch.suppression_effectiveness == pytest.approx(0.99)

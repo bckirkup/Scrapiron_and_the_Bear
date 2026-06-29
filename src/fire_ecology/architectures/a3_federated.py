@@ -41,7 +41,7 @@ class FederatedEdge(Architecture):
     def step(
         self,
         fire_grid: FireGrid,
-        weather: WeatherState,
+        _weather: WeatherState,
         opir: OPIRSatellite,
         time_step: int,
         rng: np.random.Generator,
@@ -49,10 +49,22 @@ class FederatedEdge(Architecture):
         if not self._node_positions:
             self._initialize_nodes(fire_grid)
 
-        detections: list[tuple[int, int]] = []
-        suppressions: list[tuple[int, int]] = []
-        cost = self.n_nodes * 0.3
+        detections = self._scan_node_detections(fire_grid, rng)
+        detections = self._merge_opir_detections(detections, opir, fire_grid, time_step, rng)
+        suppressions, suppression_cost = self._apply_suppressions(detections, fire_grid)
+        cost = self.n_nodes * 0.3 + suppression_cost
 
+        return ArchitectureResult(
+            detections=detections,
+            suppressions=suppressions,
+            escalations=len(detections),
+            cost=cost,
+        )
+
+    def _scan_node_detections(
+        self, fire_grid: FireGrid, rng: np.random.Generator
+    ) -> list[tuple[int, int]]:
+        detections: list[tuple[int, int]] = []
         for nr, nc in self._node_positions:
             for r in range(
                 max(0, nr - self.node_range),
@@ -69,23 +81,35 @@ class FederatedEdge(Architecture):
                         and (r, c) not in detections
                     ):
                         detections.append((r, c))
+        return detections
 
+    def _merge_opir_detections(
+        self,
+        detections: list[tuple[int, int]],
+        opir: OPIRSatellite,
+        fire_grid: FireGrid,
+        time_step: int,
+        rng: np.random.Generator,
+    ) -> list[tuple[int, int]]:
+        merged = list(detections)
         opir_hits = opir.scan(fire_grid, time_step, rng)
         for r, c, _conf in opir_hits:
-            if (r, c) not in detections:
-                detections.append((r, c))
+            if (r, c) not in merged:
+                merged.append((r, c))
+        return merged
 
+    def _apply_suppressions(
+        self,
+        detections: list[tuple[int, int]],
+        fire_grid: FireGrid,
+    ) -> tuple[list[tuple[int, int]], float]:
+        suppressions: list[tuple[int, int]] = []
+        cost = 0.0
         for r, c in detections:
             if fire_grid.suppress(r, c, effectiveness=self.suppression_effectiveness):
                 suppressions.append((r, c))
                 cost += 2.5
-
-        return ArchitectureResult(
-            detections=detections,
-            suppressions=suppressions,
-            escalations=len(detections),
-            cost=cost,
-        )
+        return suppressions, cost
 
     def _initialize_nodes(self, fire_grid: FireGrid) -> None:
         """Distribute nodes in a grid pattern."""

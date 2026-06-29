@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from fire_ecology.drones.body_plan import BodyPlan, BodyPlanType
 from fire_ecology.drones.drone_genome import DroneGenome
@@ -13,20 +14,20 @@ class TestBodyPlan:
     def test_scout_factory(self) -> None:
         bp = BodyPlan.scout()
         assert bp.plan_type == BodyPlanType.SCOUT
-        assert bp.tank_gallons == 0.0
+        assert bp.tank_gallons == pytest.approx(0.0)
         assert bp.sensor_count >= 4
         assert not bp.can_suppress
 
     def test_strike_small_factory(self) -> None:
         bp = BodyPlan.strike_small()
         assert bp.plan_type == BodyPlanType.STRIKE_SMALL
-        assert bp.tank_gallons == 5.0
+        assert bp.tank_gallons == pytest.approx(5.0)
         assert bp.can_suppress
 
     def test_strike_large_factory(self) -> None:
         bp = BodyPlan.strike_large()
         assert bp.plan_type == BodyPlanType.STRIKE_LARGE
-        assert bp.tank_gallons == 40.0
+        assert bp.tank_gallons == pytest.approx(40.0)
 
     def test_relay_factory(self) -> None:
         bp = BodyPlan.relay()
@@ -42,14 +43,14 @@ class TestBodyPlan:
         scout = BodyPlan.scout()
         small = BodyPlan.strike_small()
         large = BodyPlan.strike_large()
-        assert scout.suppression_effectiveness == 0.0
+        assert scout.suppression_effectiveness == pytest.approx(0.0)
         assert 0.2 < small.suppression_effectiveness < 0.5
         assert large.suppression_effectiveness > small.suppression_effectiveness
         assert large.suppression_effectiveness <= 0.95
 
     def test_suppression_effectiveness_no_tank(self) -> None:
         bp = BodyPlan(tank_gallons=0.0)
-        assert bp.suppression_effectiveness == 0.0
+        assert bp.suppression_effectiveness == pytest.approx(0.0)
 
 
 class TestDroneGenome:
@@ -117,8 +118,8 @@ class TestDroneGenome:
 class TestDroneState:
     def test_default_fully_charged(self) -> None:
         state = DroneState()
-        assert state.battery == 1.0
-        assert state.water == 1.0
+        assert state.battery == pytest.approx(1.0)
+        assert state.water == pytest.approx(1.0)
         assert not state.needs_swap
         assert not state.needs_water
 

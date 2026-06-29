@@ -9,7 +9,7 @@ class TestCLI:
     def test_basic_run(self) -> None:
         main(["sim", "--steps", "10", "--grid-rows", "5", "--grid-cols", "5"])
 
-    def test_json_output(self, capsys: object) -> None:
+    def test_json_output(self) -> None:
         main(["sim", "--steps", "5", "--grid-rows", "5", "--grid-cols", "5", "--json"])
 
     def test_verbose(self) -> None:

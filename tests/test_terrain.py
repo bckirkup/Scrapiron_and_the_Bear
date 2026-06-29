@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from fire_ecology.environment.terrain import TerrainCell
 
 
@@ -28,12 +30,12 @@ class TestTerrainCell:
 
     def test_elevation_range(self) -> None:
         cell = TerrainCell(elevation=1500.0)
-        assert cell.elevation == 1500.0
+        assert cell.elevation == pytest.approx(1500.0)
 
     def test_slope_range(self) -> None:
         cell = TerrainCell(slope=45.0)
-        assert cell.slope == 45.0
+        assert cell.slope == pytest.approx(45.0)
 
     def test_aspect_range(self) -> None:
         cell = TerrainCell(aspect=270.0)
-        assert cell.aspect == 270.0
+        assert cell.aspect == pytest.approx(270.0)

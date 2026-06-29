@@ -54,7 +54,6 @@ class TestBMAFireEcology:
         assert arch.living_population == 0
 
     def test_body_plan_determines_suppression(self) -> None:
-        grid, weather, opir, rng = _setup()
         arch = BMAFireEcology(
             n_drones=5,
             grid_rows=10,
