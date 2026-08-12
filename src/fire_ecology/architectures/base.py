@@ -33,6 +33,12 @@ class ArchitectureResult(BaseModel):
     ecology_extinct: bool = Field(
         default=False, description="Whether the Tot ecology has reached zero living agents"
     )
+    event_prevalence: float = Field(default=0.0, ge=0.0, le=1.0)
+    grounded_yield_share: float = Field(default=0.0, ge=0.0, le=1.0)
+    attention_solvent_fraction: float = Field(default=0.0, ge=0.0, le=1.0)
+    mean_attention_carrying_capacity: float = Field(default=0.0, ge=0.0)
+    initiation_is_degenerate: bool = Field(default=False)
+    initiation_degeneracy_reasons: list[str] = Field(default_factory=list)
 
     model_config = {"arbitrary_types_allowed": True}
 

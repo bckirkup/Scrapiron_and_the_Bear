@@ -28,6 +28,9 @@ class TestBMAFireEcology:
         assert result.cost >= 0.0
         assert isinstance(result.detections, list)
         assert isinstance(result.suppressions, list)
+        assert result.initiation_is_degenerate is True
+        assert result.initiation_degeneracy_reasons
+        assert result.event_prevalence == 1.0
 
     def test_multiple_steps(self) -> None:
         grid, weather, opir, rng = _setup()

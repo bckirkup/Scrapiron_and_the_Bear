@@ -41,6 +41,12 @@ class ComparisonResult:
     opir_detections: int = 0
     living_population_trajectory: list[int] = field(default_factory=list)
     ecology_extinct: bool = False
+    event_prevalence: float = 0.0
+    grounded_yield_share: float = 0.0
+    attention_solvent_fraction: float = 0.0
+    mean_attention_carrying_capacity: float = 0.0
+    initiation_is_degenerate: bool = False
+    initiation_degeneracy_reasons: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -186,6 +192,12 @@ def run_comparison(config: ComparisonConfig | None = None) -> list[ComparisonRes
         living_population_trajectory: list[int] = []
         total_tot_detections = 0
         total_opir_detections = 0
+        initiation_is_degenerate = False
+        initiation_degeneracy_reasons: list[str] = []
+        event_prevalence = 0.0
+        grounded_yield_share = 0.0
+        attention_solvent_fraction = 0.0
+        mean_attention_carrying_capacity = 0.0
 
         for step in range(config.steps):
             weather = _evolve_weather(step, weather_rng, config.weather_volatility)
@@ -199,6 +211,12 @@ def run_comparison(config: ComparisonConfig | None = None) -> list[ComparisonRes
             total_cost += result.cost
             total_tot_detections += result.tot_detections
             total_opir_detections += result.opir_detections
+            event_prevalence = result.event_prevalence
+            grounded_yield_share = result.grounded_yield_share
+            attention_solvent_fraction = result.attention_solvent_fraction
+            mean_attention_carrying_capacity = result.mean_attention_carrying_capacity
+            initiation_is_degenerate = result.initiation_is_degenerate
+            initiation_degeneracy_reasons = list(result.initiation_degeneracy_reasons)
             if result.living_population is not None:
                 living_population_trajectory.append(result.living_population)
 
@@ -237,6 +255,12 @@ def run_comparison(config: ComparisonConfig | None = None) -> list[ComparisonRes
                 opir_detections=total_opir_detections,
                 living_population_trajectory=living_population_trajectory,
                 ecology_extinct=any(population == 0 for population in living_population_trajectory),
+                event_prevalence=event_prevalence,
+                grounded_yield_share=grounded_yield_share,
+                attention_solvent_fraction=attention_solvent_fraction,
+                mean_attention_carrying_capacity=mean_attention_carrying_capacity,
+                initiation_is_degenerate=initiation_is_degenerate,
+                initiation_degeneracy_reasons=initiation_degeneracy_reasons,
             )
         )
 
@@ -249,6 +273,7 @@ def format_comparison_table(results: list[ComparisonResult]) -> str:
         f"{'Architecture':<16} {'Detections':>10} {'Suppressions':>12} "
         f"{'Tot':>7} {'OPIR':>7} {'Escalations':>11} {'Cost':>8} "
         f"{'Burned':>8} {'Latency':>8} {'Extinct':>8}"
+        f" {'Degenerate':>10}"
     )
     lines = [header, "-" * len(header)]
     for r in results:
@@ -257,7 +282,7 @@ def format_comparison_table(results: list[ComparisonResult]) -> str:
             f"{r.name:<16} {r.detections:>10,} {r.suppressions:>12,} "
             f"{r.tot_detections:>7,} {r.opir_detections:>7,} "
             f"{r.escalations:>11,} {r.cost:>8,.1f} {r.burned_cells:>8,} "
-            f"{latency_str:>8} {str(r.ecology_extinct):>8}"
+            f"{latency_str:>8} {str(r.ecology_extinct):>8} {str(r.initiation_is_degenerate):>10}"
         )
     return "\n".join(lines)
 
@@ -285,6 +310,12 @@ def format_comparison_json(results: list[ComparisonResult]) -> str:
                 ),
                 "living_population_trajectory": r.living_population_trajectory,
                 "ecology_extinct": r.ecology_extinct,
+                "event_prevalence": r.event_prevalence,
+                "grounded_yield_share": r.grounded_yield_share,
+                "attention_solvent_fraction": r.attention_solvent_fraction,
+                "mean_attention_carrying_capacity": r.mean_attention_carrying_capacity,
+                "initiation_is_degenerate": r.initiation_is_degenerate,
+                "initiation_degeneracy_reasons": r.initiation_degeneracy_reasons,
             }
         )
     return json.dumps(data, indent=2)
