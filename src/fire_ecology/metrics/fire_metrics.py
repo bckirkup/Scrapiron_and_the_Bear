@@ -21,6 +21,9 @@ class StepMetrics(BaseModel):
     suppressions: int = Field(default=0, ge=0)
     escalations: int = Field(default=0, ge=0)
     opir_rescues: int = Field(default=0, ge=0)
+    tot_detections: int = Field(default=0, ge=0)
+    opir_detections: int = Field(default=0, ge=0)
+    living_population: int | None = Field(default=None, ge=0)
     responses_dispatched: int = Field(default=0, ge=0)
     responses_judged_necessary: int = Field(default=0, ge=0)
     responses_judged_unnecessary: int = Field(default=0, ge=0)
@@ -53,10 +56,13 @@ class FireMetrics(BaseModel):
     total_suppressions_successful: int = Field(default=0, ge=0)
     total_false_dispatches: int = Field(default=0, ge=0)
     total_opir_rescues: int = Field(default=0, ge=0)
+    total_tot_detections: int = Field(default=0, ge=0)
+    total_opir_detections: int = Field(default=0, ge=0)
     total_escalations: int = Field(default=0, ge=0)
     total_responses_judged_necessary: int = Field(default=0, ge=0)
     total_responses_judged_unnecessary: int = Field(default=0, ge=0)
     detection_latencies: list[int] = Field(default_factory=list)
+    living_population_history: list[int] = Field(default_factory=list)
     _detected_cells: set[tuple[int, int]] = PrivateAttr(default_factory=set)
 
     def record_step(self, metrics: StepMetrics) -> None:
@@ -66,7 +72,11 @@ class FireMetrics(BaseModel):
         self.total_suppressions_successful += metrics.suppressions
         self.total_false_dispatches += metrics.false_positives
         self.total_opir_rescues += metrics.opir_rescues
+        self.total_tot_detections += metrics.tot_detections
+        self.total_opir_detections += metrics.opir_detections
         self.total_escalations += metrics.escalations
+        if metrics.living_population is not None:
+            self.living_population_history.append(metrics.living_population)
 
     def record_response_outcomes(
         self,
@@ -151,7 +161,7 @@ class FireMetrics(BaseModel):
         """Sum of all cost categories across all steps."""
         return sum(m.surveillance_cost + m.response_cost + m.damage_cost for m in self.history)
 
-    def summary(self) -> dict[str, float]:
+    def summary(self) -> dict[str, float | list[int] | bool]:
         """Return a summary dictionary of key metrics."""
         return {
             "mean_detection_latency": self.mean_detection_latency,
@@ -161,6 +171,18 @@ class FireMetrics(BaseModel):
             "total_responses_judged_necessary": float(self.total_responses_judged_necessary),
             "total_responses_judged_unnecessary": float(self.total_responses_judged_unnecessary),
             "opir_rescue_rate": self.opir_rescue_rate,
+            "total_tot_detections": float(self.total_tot_detections),
+            "total_opir_detections": float(self.total_opir_detections),
+            "tot_detection_share": (
+                self.total_tot_detections / (self.total_tot_detections + self.total_opir_detections)
+                if self.total_tot_detections + self.total_opir_detections
+                else 0.0
+            ),
+            "living_population_trajectory": list(self.living_population_history),
+            "ecology_extinct": bool(
+                self.living_population_history
+                and any(population == 0 for population in self.living_population_history)
+            ),
             "total_cost": self.total_cost,
             "total_fires_detected": float(self.total_fires_detected),
             "total_escalations": float(self.total_escalations),

@@ -61,6 +61,7 @@ def _run_compare(args: argparse.Namespace) -> None:
         seed=args.seed,
         n_drones=args.n_drones,
         include_a4=not args.no_a4,
+        include_a4_opir_ablation=args.a4_opir_ablation,
         max_thermal_dim=args.max_thermal_dim,
     )
     results = run_comparison(config)
@@ -106,6 +107,11 @@ def main(argv: list[str] | None = None) -> None:
     _add_common_args(cmp_parser)
     cmp_parser.add_argument("--n-drones", type=int, default=10)
     cmp_parser.add_argument("--no-a4", action="store_true")
+    cmp_parser.add_argument(
+        "--a4-opir-ablation",
+        action="store_true",
+        help="Include a second A4 arm with the OPIR backstop disabled",
+    )
 
     effective_argv = argv if argv is not None else []
     if effective_argv and effective_argv[0] not in ("sim", "batch", "compare", "-h", "--help"):

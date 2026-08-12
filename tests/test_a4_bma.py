@@ -71,3 +71,42 @@ class TestBMAFireEcology:
         assert arch._adapter is not None
         assert len(grid.active_fire_cells()) > 0
         assert len(arch._adapter.fire_grid.active_fire_cells()) == 0
+
+    def test_opir_ablation_changes_attribution(self) -> None:
+        grid_on, weather_on, opir_on, rng_on = _setup()
+        enabled = BMAFireEcology(
+            n_drones=5,
+            grid_rows=10,
+            grid_cols=10,
+            seed=42,
+            initial_population=5,
+            use_opir=True,
+        )
+        enabled.step(grid_on, weather_on, opir_on, time_step=0, rng=rng_on)
+        assert enabled.world is not None
+        for agent in enabled.world.agents.values():
+            agent.state.energy.information = -1e9
+            agent.state.energy.attention = -1e9
+        enabled_result = enabled.step(grid_on, weather_on, opir_on, time_step=1, rng=rng_on)
+
+        grid_off, weather_off, opir_off, rng_off = _setup()
+        disabled = BMAFireEcology(
+            n_drones=5,
+            grid_rows=10,
+            grid_cols=10,
+            seed=42,
+            initial_population=5,
+            use_opir=False,
+        )
+        disabled.step(grid_off, weather_off, opir_off, time_step=0, rng=rng_off)
+        assert disabled.world is not None
+        for agent in disabled.world.agents.values():
+            agent.state.energy.information = -1e9
+            agent.state.energy.attention = -1e9
+        disabled_result = disabled.step(grid_off, weather_off, opir_off, time_step=1, rng=rng_off)
+
+        assert enabled_result.opir_detections > 0
+        assert disabled_result.opir_detections == 0
+        assert enabled_result.detections != disabled_result.detections
+        assert enabled_result.ecology_extinct is True
+        assert disabled_result.ecology_extinct is True

@@ -131,6 +131,7 @@ class FireDomainHooks:
                 surveillance_cost=costs["surveillance_cost"],
                 response_cost=costs["response_cost"],
                 damage_cost=costs["damage_cost"],
+                living_population=layer_events.get("population"),
             )
         )
 

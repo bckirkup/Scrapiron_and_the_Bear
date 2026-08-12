@@ -41,6 +41,24 @@ class TestComparison:
         assert len(results) == 5
         assert results[-1].name == "A4 BMA"
 
+    def test_run_with_a4_opir_ablation_arm(self) -> None:
+        config = ComparisonConfig(
+            steps=20,
+            grid_rows=20,
+            grid_cols=20,
+            seed=42,
+            n_drones=2,
+            include_a4=True,
+            include_a4_opir_ablation=True,
+        )
+        results = run_comparison(config)
+        normal = next(result for result in results if result.name == "A4 BMA")
+        ablated = next(result for result in results if "OPIR ablated" in result.name)
+        assert normal.opir_detections > 0
+        assert ablated.opir_detections == 0
+        assert normal.detections != ablated.detections
+        assert normal.burned_cells != ablated.burned_cells
+
     def test_deterministic(self) -> None:
         config = ComparisonConfig(
             steps=15,
