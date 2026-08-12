@@ -39,6 +39,7 @@ class BMAFireEcology(Architecture):
         body_plan: BodyPlan | None = None,
         initial_population: int = 15,
         max_thermal_dim: int | None = None,
+        use_opir: bool = True,
     ) -> None:
         self.n_drones = n_drones
         self.body_plan = body_plan or BodyPlan.hybrid()
@@ -47,6 +48,7 @@ class BMAFireEcology(Architecture):
         self._grid_cols = grid_cols
         self._initial_population = initial_population
         self._max_thermal_dim = max_thermal_dim
+        self._use_opir = use_opir
 
         self._adapter: FireEcologyAdapter | None = None
         self._world: World | None = None
@@ -117,10 +119,13 @@ class BMAFireEcology(Architecture):
                     detections.append(cell)
 
         # 5. OPIR backstop
+        opir_detections = 0
         opir_hits = opir.scan(fire_grid, time_step, rng)
-        for r, c, _conf in opir_hits:
-            if (r, c) not in detections:
-                detections.append((r, c))
+        if self._use_opir:
+            for r, c, _conf in opir_hits:
+                if (r, c) not in detections:
+                    detections.append((r, c))
+                    opir_detections += 1
 
         # 6. Suppression using body-plan effectiveness
         suppressions: list[tuple[int, int]] = []
@@ -138,6 +143,10 @@ class BMAFireEcology(Architecture):
             suppressions=suppressions,
             escalations=record.reports_issued,
             cost=cost,
+            tot_detections=len(detections) - opir_detections,
+            opir_detections=opir_detections,
+            living_population=self.living_population,
+            ecology_extinct=self.living_population == 0,
         )
 
     @property

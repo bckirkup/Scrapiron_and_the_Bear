@@ -37,6 +37,10 @@ class ComparisonResult:
     burned_cells: int = 0
     mean_detection_latency: float = float("inf")
     suppression_success_rate: float = 0.0
+    tot_detections: int = 0
+    opir_detections: int = 0
+    living_population_trajectory: list[int] = field(default_factory=list)
+    ecology_extinct: bool = False
 
 
 @dataclass
@@ -53,6 +57,7 @@ class ComparisonConfig:
     base_ignition_rate: float = 0.0001
     weather_volatility: float = 1.0
     include_a4: bool = True
+    include_a4_opir_ablation: bool = False
     max_thermal_dim: int | None = None
 
 
@@ -123,9 +128,26 @@ def _make_architectures(
                     body_plan=BodyPlan.hybrid(),
                     initial_population=config.n_drones,
                     max_thermal_dim=config.max_thermal_dim,
+                    use_opir=True,
                 ),
             )
         )
+        if config.include_a4_opir_ablation:
+            archs.append(
+                (
+                    "A4 BMA (OPIR ablated)",
+                    BMAFireEcology(
+                        n_drones=config.n_drones,
+                        grid_rows=config.grid_rows,
+                        grid_cols=config.grid_cols,
+                        seed=config.seed,
+                        body_plan=BodyPlan.hybrid(),
+                        initial_population=config.n_drones,
+                        max_thermal_dim=config.max_thermal_dim,
+                        use_opir=False,
+                    ),
+                )
+            )
     return archs
 
 
@@ -161,6 +183,9 @@ def run_comparison(config: ComparisonConfig | None = None) -> list[ComparisonRes
         total_sup = 0
         total_esc = 0
         total_cost = 0.0
+        living_population_trajectory: list[int] = []
+        total_tot_detections = 0
+        total_opir_detections = 0
 
         for step in range(config.steps):
             weather = _evolve_weather(step, weather_rng, config.weather_volatility)
@@ -172,6 +197,10 @@ def run_comparison(config: ComparisonConfig | None = None) -> list[ComparisonRes
             total_sup += len(result.suppressions)
             total_esc += result.escalations
             total_cost += result.cost
+            total_tot_detections += result.tot_detections
+            total_opir_detections += result.opir_detections
+            if result.living_population is not None:
+                living_population_trajectory.append(result.living_population)
 
             # Wire detection latency tracking
             metrics.record_detections_from_grid(result.detections, grid, step)
@@ -183,6 +212,9 @@ def run_comparison(config: ComparisonConfig | None = None) -> list[ComparisonRes
                 detections=len(result.detections),
                 suppressions=len(result.suppressions),
                 escalations=result.escalations,
+                tot_detections=result.tot_detections,
+                opir_detections=result.opir_detections,
+                living_population=result.living_population,
                 surveillance_cost=result.cost * 0.3,
                 response_cost=result.cost * 0.5,
                 damage_cost=result.cost * 0.2,
@@ -201,6 +233,10 @@ def run_comparison(config: ComparisonConfig | None = None) -> list[ComparisonRes
                 burned_cells=grid.burned_area(),
                 mean_detection_latency=round(metrics.mean_detection_latency, 2),
                 suppression_success_rate=round(metrics.suppression_success_rate, 4),
+                tot_detections=total_tot_detections,
+                opir_detections=total_opir_detections,
+                living_population_trajectory=living_population_trajectory,
+                ecology_extinct=any(population == 0 for population in living_population_trajectory),
             )
         )
 
@@ -211,14 +247,17 @@ def format_comparison_table(results: list[ComparisonResult]) -> str:
     """Format comparison results as an aligned text table."""
     header = (
         f"{'Architecture':<16} {'Detections':>10} {'Suppressions':>12} "
-        f"{'Escalations':>11} {'Cost':>8} {'Burned':>8} {'Latency':>8}"
+        f"{'Tot':>7} {'OPIR':>7} {'Escalations':>11} {'Cost':>8} "
+        f"{'Burned':>8} {'Latency':>8} {'Extinct':>8}"
     )
     lines = [header, "-" * len(header)]
     for r in results:
         latency_str = f"{r.mean_detection_latency:.1f}" if r.mean_detection_latency < 1e6 else "inf"
         lines.append(
             f"{r.name:<16} {r.detections:>10,} {r.suppressions:>12,} "
-            f"{r.escalations:>11,} {r.cost:>8,.1f} {r.burned_cells:>8,} {latency_str:>8}"
+            f"{r.tot_detections:>7,} {r.opir_detections:>7,} "
+            f"{r.escalations:>11,} {r.cost:>8,.1f} {r.burned_cells:>8,} "
+            f"{latency_str:>8} {str(r.ecology_extinct):>8}"
         )
     return "\n".join(lines)
 
@@ -237,6 +276,15 @@ def format_comparison_json(results: list[ComparisonResult]) -> str:
                 "burned_cells": r.burned_cells,
                 "mean_detection_latency": r.mean_detection_latency,
                 "suppression_success_rate": r.suppression_success_rate,
+                "tot_detections": r.tot_detections,
+                "opir_detections": r.opir_detections,
+                "tot_detection_share": (
+                    r.tot_detections / (r.tot_detections + r.opir_detections)
+                    if r.tot_detections + r.opir_detections
+                    else 0.0
+                ),
+                "living_population_trajectory": r.living_population_trajectory,
+                "ecology_extinct": r.ecology_extinct,
             }
         )
     return json.dumps(data, indent=2)

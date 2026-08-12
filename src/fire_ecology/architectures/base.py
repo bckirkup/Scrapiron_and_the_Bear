@@ -23,6 +23,16 @@ class ArchitectureResult(BaseModel):
     )
     escalations: int = Field(default=0, ge=0, description="Escalations to human operators")
     cost: float = Field(default=0.0, ge=0.0, description="Operational cost this step")
+    tot_detections: int = Field(default=0, ge=0, description="Detections attributed to Tot reports")
+    opir_detections: int = Field(
+        default=0, ge=0, description="Detections attributed to the OPIR backstop"
+    )
+    living_population: int | None = Field(
+        default=None, ge=0, description="Living Tots after this step, when applicable"
+    )
+    ecology_extinct: bool = Field(
+        default=False, description="Whether the Tot ecology has reached zero living agents"
+    )
 
     model_config = {"arbitrary_types_allowed": True}
 

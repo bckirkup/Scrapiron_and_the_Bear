@@ -54,6 +54,36 @@ class TestFireMetrics:
         metrics.total_opir_rescues = 3
         assert metrics.opir_rescue_rate == pytest.approx(0.3)
 
+    def test_detection_origin_golden_values(self) -> None:
+        metrics = FireMetrics()
+        metrics.record_step(
+            StepMetrics(
+                time_step=0,
+                detections=5,
+                tot_detections=2,
+                opir_detections=3,
+                living_population=4,
+            )
+        )
+        summary = metrics.summary()
+        assert summary["total_tot_detections"] == pytest.approx(2.0)
+        assert summary["total_opir_detections"] == pytest.approx(3.0)
+        assert summary["tot_detection_share"] == pytest.approx(0.4)
+        assert summary["living_population_trajectory"] == [4]
+        assert summary["ecology_extinct"] is False
+
+    def test_extinct_ecology_is_distinguishable_from_living(self) -> None:
+        extinct = FireMetrics()
+        extinct.record_step(StepMetrics(time_step=0, living_population=2))
+        extinct.record_step(StepMetrics(time_step=1, living_population=0))
+        living = FireMetrics()
+        living.record_step(StepMetrics(time_step=0, living_population=2))
+        living.record_step(StepMetrics(time_step=1, living_population=1))
+        assert extinct.summary()["living_population_trajectory"] == [2, 0]
+        assert extinct.summary()["ecology_extinct"] is True
+        assert living.summary()["living_population_trajectory"] == [2, 1]
+        assert living.summary()["ecology_extinct"] is False
+
     def test_total_cost(self) -> None:
         metrics = FireMetrics()
         metrics.record_step(
