@@ -120,8 +120,8 @@ class BMAFireEcology(Architecture):
 
         # 5. OPIR backstop
         opir_detections = 0
+        opir_hits = opir.scan(fire_grid, time_step, rng)
         if self._use_opir:
-            opir_hits = opir.scan(fire_grid, time_step, rng)
             for r, c, _conf in opir_hits:
                 if (r, c) not in detections:
                     detections.append((r, c))

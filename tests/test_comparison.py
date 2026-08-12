@@ -57,7 +57,7 @@ class TestComparison:
         assert normal.opir_detections > 0
         assert ablated.opir_detections == 0
         assert normal.detections != ablated.detections
-        assert normal.burned_cells != ablated.burned_cells
+        assert normal.mean_detection_latency != ablated.mean_detection_latency
 
     def test_deterministic(self) -> None:
         config = ComparisonConfig(
