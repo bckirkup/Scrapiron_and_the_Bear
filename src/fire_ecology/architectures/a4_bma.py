@@ -102,6 +102,12 @@ class BMAFireEcology(Architecture):
 
         # 3. Run one TattleTots step
         record = self._world.step()
+        telemetry = self._world.telemetry.summary()
+        initiation_is_degenerate = bool(telemetry["initiation_is_degenerate"])
+        raw_reasons: object = telemetry.get("initiation_degeneracy_reasons", [])
+        initiation_degeneracy_reasons = (
+            [str(reason) for reason in raw_reasons] if isinstance(raw_reasons, list) else []
+        )
 
         # 4. Map Tot escalations → fire-grid detections
         #    The StepRecord gives us counts (reports_issued, correct_reports).
@@ -147,6 +153,12 @@ class BMAFireEcology(Architecture):
             opir_detections=opir_detections,
             living_population=self.living_population,
             ecology_extinct=self.living_population == 0,
+            event_prevalence=float(telemetry["event_prevalence"]),
+            grounded_yield_share=float(telemetry["grounded_yield_share"]),
+            attention_solvent_fraction=float(telemetry["attention_solvent_fraction"]),
+            mean_attention_carrying_capacity=float(telemetry["mean_attention_carrying_capacity"]),
+            initiation_is_degenerate=initiation_is_degenerate,
+            initiation_degeneracy_reasons=initiation_degeneracy_reasons,
         )
 
     @property

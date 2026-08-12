@@ -41,6 +41,19 @@ class TestComparison:
         assert len(results) == 5
         assert results[-1].name == "A4 BMA"
 
+    def test_a4_comparison_surfaces_degeneracy(self) -> None:
+        config = ComparisonConfig(
+            steps=10,
+            grid_rows=5,
+            grid_cols=5,
+            seed=42,
+            n_drones=3,
+            include_a4=True,
+        )
+        a4 = next(result for result in run_comparison(config) if result.name == "A4 BMA")
+        assert a4.initiation_is_degenerate is True
+        assert a4.initiation_degeneracy_reasons
+
     def test_run_with_a4_opir_ablation_arm(self) -> None:
         config = ComparisonConfig(
             steps=20,
