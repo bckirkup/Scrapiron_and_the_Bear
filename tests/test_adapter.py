@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 from tattletots.models.dispatch_target import DispatchTarget
+from tattletots.models.observation import ObservationStatus
 from tattletots.models.report import Report
 
 from fire_ecology.adapter.fire_adapter import FireEcologyAdapter
@@ -17,6 +18,75 @@ class TestFireEcologyAdapter:
         streams = adapter.get_streams()
         assert len(streams) == 3
         assert all(s.dimensionality > 0 for s in streams)
+
+    def test_streams_publish_spatial_contract(self) -> None:
+        adapter = FireEcologyAdapter(grid_rows=20, grid_cols=20)
+        thermal, weather, fuel = adapter.get_streams()
+
+        assert adapter.get_location_frame() == ((0, 0), (19, 19))
+        assert thermal.metadata is not None
+        assert thermal.metadata.coordinates is not None
+        assert len(thermal.metadata.coordinates) == thermal.dimensionality
+        assert thermal.metadata.footprints is not None
+        assert thermal.metadata.footprints[0] is not None
+        assert thermal.metadata.footprints[0][0] > 1.0
+
+        assert weather.metadata is not None
+        assert weather.metadata.sensor_coordinates is not None
+        assert weather.metadata.modality[:5] == [
+            "temperature",
+            "humidity",
+            "wind_speed",
+            "wind_direction",
+            "precipitation",
+        ]
+        assert fuel.metadata is not None
+        assert fuel.metadata.sensor_coordinates is not None
+        assert fuel.metadata.modality[:3] == [
+            "live_moisture",
+            "dead_moisture",
+            "effective_moisture",
+        ]
+
+    def test_sensor_declarations_do_not_depend_on_fire_state(self) -> None:
+        quiet_grid = FireGrid(rows=20, cols=20)
+        burning_grid = FireGrid(rows=20, cols=20)
+        for row, col in ((2, 3), (8, 11), (17, 19)):
+            burning_grid.ignite(row, col, 0)
+        quiet = FireEcologyAdapter(grid_rows=20, grid_cols=20, seed=42)
+        burning = FireEcologyAdapter(grid_rows=20, grid_cols=20, seed=42)
+        weather = WeatherState(temperature=30.0, humidity=0.3, wind_speed=5.0)
+
+        quiet.observe_grid(quiet_grid, weather, time_step=1)
+        burning.observe_grid(burning_grid, weather, time_step=1)
+
+        for quiet_stream, burning_stream in zip(
+            quiet.get_streams(), burning.get_streams(), strict=True
+        ):
+            assert quiet_stream.metadata == burning_stream.metadata
+            np.testing.assert_array_equal(
+                quiet_stream.current_status, burning_stream.current_status
+            )
+
+    def test_statuses_use_sensor_availability_not_fire_state(self) -> None:
+        quiet_grid = FireGrid(rows=20, cols=20)
+        burning_grid = FireGrid(rows=20, cols=20)
+        burning_grid.ignite(10, 10, 0)
+        quiet = FireEcologyAdapter(grid_rows=20, grid_cols=20, seed=7, opir_cadence=5)
+        burning = FireEcologyAdapter(grid_rows=20, grid_cols=20, seed=7, opir_cadence=5)
+        weather = WeatherState(temperature=30.0, humidity=0.3, wind_speed=5.0)
+
+        quiet.observe_grid(quiet_grid, weather, time_step=2)
+        burning.observe_grid(burning_grid, weather, time_step=2)
+
+        for quiet_stream, burning_stream in zip(
+            quiet.get_streams(), burning.get_streams(), strict=True
+        ):
+            assert quiet_stream.current_status.size == quiet_stream.dimensionality
+            np.testing.assert_array_equal(
+                quiet_stream.current_status, burning_stream.current_status
+            )
+        assert ObservationStatus.MISSING.value in quiet.get_streams()[2].current_status
 
     def test_get_users(self) -> None:
         adapter = FireEcologyAdapter()

@@ -12,6 +12,7 @@ from tattletots.engine.response_judgment import judge_necessity
 from tattletots.interface.domain_adapter import DomainAdapter
 from tattletots.models.dispatch_target import DispatchTarget
 from tattletots.models.location import EventLocation
+from tattletots.models.observation import ObservationStatus, StreamMetadata
 from tattletots.models.report import Report
 from tattletots.models.response_outcome import ResponseOutcome
 from tattletots.models.stream import Stream, StreamType
@@ -115,20 +116,77 @@ class FireEcologyAdapter(DomainAdapter):
                 dimensionality=thermal_dim,
                 label="thermal_detection",
                 current_data=np.zeros(thermal_dim),
+                metadata=self._thermal_metadata(thermal_dim),
             ),
             Stream(
                 stream_type=StreamType.RAW,
                 dimensionality=weather_dim,
                 label="weather_observations",
                 current_data=np.zeros(weather_dim),
+                metadata=self._weather_metadata(),
             ),
             Stream(
                 stream_type=StreamType.RAW,
                 dimensionality=fuel_dim,
                 label="fuel_moisture",
                 current_data=np.zeros(fuel_dim),
+                metadata=self._fuel_metadata(),
             ),
         ]
+
+    def _thermal_metadata(self, dimensionality: int) -> StreamMetadata:
+        """Declare sampled thermal cells and their coarse spatial support."""
+        indices = self._thermal_sample_indices(dimensionality)
+        coordinates: list[tuple[float, ...] | None] = [
+            (float(index // self._grid.cols), float(index % self._grid.cols)) for index in indices
+        ]
+        stride = (
+            float(np.sqrt(self._grid.rows * self._grid.cols / dimensionality))
+            if dimensionality < self._grid.rows * self._grid.cols
+            else 1.0
+        )
+        return StreamMetadata(
+            coordinates=coordinates,
+            sensor_coordinates=[None] * dimensionality,
+            modality=["thermal"] * dimensionality,
+            identity=[None] * dimensionality,
+            footprints=[(stride, stride)] * dimensionality,
+            resolution=[stride] * dimensionality,
+        )
+
+    def _weather_metadata(self) -> StreamMetadata:
+        """Declare localized weather features for each fixed station."""
+        modalities = ("temperature", "humidity", "wind_speed", "wind_direction", "precipitation")
+        sensor_coordinates: list[tuple[float, ...] | None] = [
+            (float(station.row), float(station.col))
+            for station in self._weather_stations
+            for _ in modalities
+        ]
+        return StreamMetadata(
+            coordinates=[None] * len(sensor_coordinates),
+            sensor_coordinates=sensor_coordinates,
+            modality=[modality for _ in self._weather_stations for modality in modalities],
+            identity=[None] * len(sensor_coordinates),
+            footprints=[(0.0, 0.0)] * len(sensor_coordinates),
+            resolution=[0.0] * len(sensor_coordinates),
+        )
+
+    def _fuel_metadata(self) -> StreamMetadata:
+        """Declare localized fuel-moisture features for each fixed probe."""
+        modalities = ("live_moisture", "dead_moisture", "effective_moisture")
+        sensor_coordinates: list[tuple[float, ...] | None] = [
+            (float(sensor.row), float(sensor.col))
+            for sensor in self._fuel_sensors
+            for _ in modalities
+        ]
+        return StreamMetadata(
+            coordinates=[None] * len(sensor_coordinates),
+            sensor_coordinates=sensor_coordinates,
+            modality=[modality for _ in self._fuel_sensors for modality in modalities],
+            identity=[None] * len(sensor_coordinates),
+            footprints=[(0.0, 0.0)] * len(sensor_coordinates),
+            resolution=[0.0] * len(sensor_coordinates),
+        )
 
     def _total_stream_dims(self) -> int:
         return sum(s.dimensionality for s in self._streams)
@@ -258,6 +316,10 @@ class FireEcologyAdapter(DomainAdapter):
         """Return grid coordinates of all currently burning cells."""
         return self._grid.active_fire_cells()
 
+    def get_location_frame(self) -> tuple[EventLocation, EventLocation]:
+        """Declare the inclusive FireGrid coordinate frame."""
+        return ((0, 0), (self._grid.rows - 1, self._grid.cols - 1))
+
     def infer_report_location(
         self,
         stream_data: list[NDArray[np.float64]],
@@ -341,18 +403,76 @@ class FireEcologyAdapter(DomainAdapter):
         observe_rng = rng if rng is not None else self.rng
 
         thermal = self._build_thermal_vector(time_step, grid)
-        self._streams[0].update(thermal)
+        thermal_status = self._thermal_status(time_step)
+        thermal_stream = self._streams[0]
+        if thermal_stream.metadata is not None:
+            thermal_coordinates = self._thermal_metadata(thermal_stream.dimensionality).coordinates
+            if thermal_coordinates is None:
+                raise RuntimeError("thermal metadata must declare sampled coordinates")
+            thermal_stream.metadata = thermal_stream.metadata.model_copy(
+                update={
+                    "coordinates": [
+                        coordinate if status == ObservationStatus.OBSERVED.value else None
+                        for coordinate, status in zip(
+                            thermal_coordinates,
+                            thermal_status,
+                            strict=True,
+                        )
+                    ]
+                }
+            )
+        thermal_stream.update(thermal, thermal_status)
 
         weather_obs = np.concatenate(
             [ws.observe(self._weather, observe_rng) for ws in self._weather_stations]
         )
-        self._streams[1].update(weather_obs)
+        self._streams[1].update(
+            weather_obs,
+            np.full(
+                weather_obs.size,
+                ObservationStatus.OBSERVED.value,
+                dtype="<U8",
+            ),
+        )
 
         fuel_parts: list[np.ndarray] = []
         for fs in self._fuel_sensors:
             obs = fs.observe(grid.fuel[fs.row][fs.col], time_step, observe_rng)
             fuel_parts.append(obs if obs is not None else np.zeros(3))
-        self._streams[2].update(np.concatenate(fuel_parts))
+        fuel_data = np.concatenate(fuel_parts)
+        fuel_status = np.concatenate(
+            [
+                np.full(
+                    3,
+                    (
+                        ObservationStatus.OBSERVED.value
+                        if time_step % sensor.cadence == 0
+                        else ObservationStatus.MISSING.value
+                    ),
+                    dtype="<U8",
+                )
+                for sensor in self._fuel_sensors
+            ]
+        )
+        self._streams[2].update(fuel_data, fuel_status)
+
+    def _thermal_status(self, time_step: int) -> np.ndarray:
+        """Declare thermal availability from cadence and fixed camera ranges."""
+        indices = self._thermal_sample_indices(self._streams[0].dimensionality)
+        statuses: list[str] = []
+        opir_available = time_step % self._opir.cadence == 0
+        for index in indices:
+            row, col = divmod(int(index), self._grid.cols)
+            camera_available = any(
+                np.hypot(row - camera.row, col - camera.col) <= camera.max_range
+                for camera in self._cameras
+            )
+            statuses.append(
+                ObservationStatus.OBSERVED.value
+                if opir_available or camera_available
+                else ObservationStatus.MISSING.value
+            )
+        return np.asarray(statuses, dtype="<U8")
 
     def _build_thermal_vector(
         self, time_step: int, fire_grid: FireGrid | None = None
