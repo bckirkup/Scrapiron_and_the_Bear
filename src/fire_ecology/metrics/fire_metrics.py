@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from pydantic import BaseModel, Field, PrivateAttr
 
@@ -63,7 +63,10 @@ class FireMetrics(BaseModel):
     total_responses_judged_unnecessary: int = Field(default=0, ge=0)
     detection_latencies: list[int] = Field(default_factory=list)
     living_population_history: list[int] = Field(default_factory=list)
-    _detected_cells: set[tuple[int, int]] = PrivateAttr(default_factory=set)
+    _detected_cells: set[tuple[int, int]] = cast(
+        set[tuple[int, int]],
+        PrivateAttr(default_factory=set),
+    )
 
     def record_step(self, metrics: StepMetrics) -> None:
         """Record a single step's metrics."""

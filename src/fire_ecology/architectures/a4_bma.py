@@ -114,31 +114,14 @@ class BMAFireEcology(Architecture):
         #    We translate each report into a detection of the highest-intensity
         #    active fire cell, simulating the collective Tot ecology directing
         #    human attention to the worst hotspots.
-        active = fire_grid.active_fire_cells()
-        detections: list[tuple[int, int]] = []
-        if record.reports_issued > 0 and active:
-            ranked = sorted(
-                active, key=lambda rc: fire_grid.fire[rc[0]][rc[1]].intensity, reverse=True
-            )
-            for cell in ranked[: record.reports_issued]:
-                if cell not in detections:
-                    detections.append(cell)
+        detections = self._tot_detections(record.reports_issued, fire_grid)
 
         # 5. OPIR backstop
-        opir_detections = 0
         opir_hits = opir.scan(fire_grid, time_step, rng)
-        if self._use_opir:
-            for r, c, _conf in opir_hits:
-                if (r, c) not in detections:
-                    detections.append((r, c))
-                    opir_detections += 1
+        opir_detections = self._add_opir_detections(detections, opir_hits)
 
         # 6. Suppression using body-plan effectiveness
-        suppressions: list[tuple[int, int]] = []
-        effectiveness = self.body_plan.suppression_effectiveness
-        for r, c in detections[: self.n_drones]:
-            if self.body_plan.can_suppress and fire_grid.suppress(r, c, effectiveness):
-                suppressions.append((r, c))
+        suppressions = self._apply_suppressions(detections, fire_grid)
 
         # 7. Cost: drone operations + TattleTots overhead
         cost = self.n_drones * 0.4
@@ -160,6 +143,39 @@ class BMAFireEcology(Architecture):
             initiation_is_degenerate=initiation_is_degenerate,
             initiation_degeneracy_reasons=initiation_degeneracy_reasons,
         )
+
+    def _tot_detections(self, report_count: int, fire_grid: FireGrid) -> list[tuple[int, int]]:
+        active = fire_grid.active_fire_cells()
+        detections: list[tuple[int, int]] = []
+        if report_count > 0 and active:
+            ranked = sorted(
+                active, key=lambda rc: fire_grid.fire[rc[0]][rc[1]].intensity, reverse=True
+            )
+            for cell in ranked[:report_count]:
+                if cell not in detections:
+                    detections.append(cell)
+        return detections
+
+    def _add_opir_detections(
+        self, detections: list[tuple[int, int]], opir_hits: list[tuple[int, int, float]]
+    ) -> int:
+        opir_detections = 0
+        if self._use_opir:
+            for r, c, _conf in opir_hits:
+                if (r, c) not in detections:
+                    detections.append((r, c))
+                    opir_detections += 1
+        return opir_detections
+
+    def _apply_suppressions(
+        self, detections: list[tuple[int, int]], fire_grid: FireGrid
+    ) -> list[tuple[int, int]]:
+        suppressions: list[tuple[int, int]] = []
+        effectiveness = self.body_plan.suppression_effectiveness
+        for r, c in detections[: self.n_drones]:
+            if self.body_plan.can_suppress and fire_grid.suppress(r, c, effectiveness):
+                suppressions.append((r, c))
+        return suppressions
 
     @property
     def world(self) -> World | None:
