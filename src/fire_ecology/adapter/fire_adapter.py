@@ -263,12 +263,17 @@ class FireEcologyAdapter(DomainAdapter):
         stream_data: list[NDArray[np.float64]],
         stream_labels: list[str],
     ) -> EventLocation:
-        """Infer fire location from thermal stream peak."""
+        """Infer fire location from the sampled thermal stream peak.
+
+        Each thermal value represents one sampled grid cell; unsampled cells
+        are outside this stream's spatial resolution.
+        """
         for data, label in zip(stream_data, stream_labels, strict=False):
             if label == "thermal_detection" and data.size > 0:
                 peak_idx = int(np.argmax(data))
                 cols = self._grid.cols
-                return (peak_idx // cols, peak_idx % cols)
+                full_idx = int(self._thermal_sample_indices(data.size)[peak_idx])
+                return (full_idx // cols, full_idx % cols)
         return (0, 0)
 
     def score_relevance(self, signal_vector: NDArray[np.float64], user: User) -> float:
@@ -366,8 +371,15 @@ class FireEcologyAdapter(DomainAdapter):
             result[: full_grid.size] = full_grid
             return result
 
-        indices = np.linspace(0, full_grid.size - 1, dim, dtype=int)
-        return full_grid[indices]
+        return full_grid[self._thermal_sample_indices(dim)]
+
+    def _thermal_sample_indices(self, thermal_dim: int | None = None) -> NDArray[np.int64]:
+        """Return full-grid indices represented by thermal stream positions."""
+        total_cells = self._grid.rows * self._grid.cols
+        dim = self._streams[0].dimensionality if thermal_dim is None else thermal_dim
+        if total_cells <= dim:
+            return np.arange(total_cells, dtype=np.int64)
+        return np.linspace(0, total_cells - 1, dim, dtype=int)
 
     @property
     def n_drones(self) -> int:

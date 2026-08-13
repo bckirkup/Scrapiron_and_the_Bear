@@ -127,6 +127,42 @@ class TestFireEcologyAdapter:
         thermal = adapter.get_streams()[0].current_data
         assert float(np.max(thermal)) > 0.0
 
+    def test_thermal_location_inverts_sample_index(self) -> None:
+        adapter = FireEcologyAdapter(grid_rows=10, grid_cols=10, max_thermal_dim=5)
+        external = FireGrid(rows=10, cols=10)
+        external.ignite(4, 9, 0)
+        adapter.observe_grid(
+            external,
+            WeatherState(temperature=30.0, humidity=0.3, wind_speed=5.0),
+            time_step=0,
+        )
+        thermal = adapter.get_streams()[0].current_data
+
+        location = adapter.infer_report_location(
+            [thermal],
+            ["thermal_detection"],
+        )
+
+        assert location == (4, 9)
+        assert adapter._thermal_sample_indices(5).tolist() == [0, 24, 49, 74, 99]
+
+    def test_thermal_location_resolution_excludes_unsampled_cells(self) -> None:
+        adapter = FireEcologyAdapter(grid_rows=10, grid_cols=10, max_thermal_dim=5)
+        sampled = set(adapter._thermal_sample_indices(5).tolist())
+        unsampled_index = next(index for index in range(100) if index not in sampled)
+        external = FireGrid(rows=10, cols=10)
+        external.ignite(unsampled_index // 10, unsampled_index % 10, 0)
+
+        adapter.observe_grid(
+            external,
+            WeatherState(temperature=30.0, humidity=0.3, wind_speed=5.0),
+            time_step=0,
+        )
+
+        thermal = adapter.get_streams()[0].current_data
+        assert float(np.max(thermal)) == 0.0
+        assert unsampled_index not in sampled
+
     def test_dispatch_and_judge_necessary_suppression(self) -> None:
         adapter = FireEcologyAdapter(
             grid_rows=10,
