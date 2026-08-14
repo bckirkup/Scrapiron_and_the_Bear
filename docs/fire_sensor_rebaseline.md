@@ -25,6 +25,12 @@ patrol-plus-OPIR architecture, while A2 intentionally uses its existing
 global-state conventional-optimizer assumption; those are architecture
 exposure differences, not independently placed adapter sensors.
 
+Camera coverage is now single-sourced through `CameraTower.covers_cell`, which
+checks range and line of sight. Both camera detection and adapter coverage
+status use that predicate. The day/night convention is likewise shared by A1
+and the adapter. When OPIR is ablated, the adapter skips the OPIR scan instead
+of consuming its random draws before camera observations.
+
 ## Instrument validation
 
 Fresh default adapter, 200 steps:
@@ -79,3 +85,42 @@ cameras, OPIR cadence 5.
 The A0-A3 values are unchanged because this data-path change affects the A4
 adapter stream. Earlier Fire comparison results, including the old A4 values,
 are superseded by this note and the JSON artifact.
+
+### OPIR ablation RNG correction
+
+The default 100-step OPIR-ablation arm changed after removing the disabled
+OPIR scan from the adapter stream:
+
+| Metric | Before fix | After fix | Change |
+|---|---:|---:|---:|
+| Detections | 164 | 185 | +21 |
+| Suppressions | 1 | 1 | 0 |
+| Cost | 401.5 | 401.5 | 0.0 |
+| Burned cells | 399 | 400 | +1 |
+| Mean detection latency | 5.75 | 5.49 | -0.26 |
+| Tot detections | 164 | 185 | +21 |
+| OPIR detections | 0 | 0 | 0 |
+
+The before-fix values were measured from source snapshot `1a2e0da` with the
+current engine environment; the after-fix values are from the current source.
+The ablation now has a clean sensor-RNG path: disabling OPIR removes its stream
+scan rather than perturbing subsequent camera and downstream draws.
+
+### Thermal input density and comparison caveat
+
+Over the same 200-step, seed-42 external grid sequence, the mean fraction of
+thermal features that were nonzero fell from **8.0%** under the former
+ground-truth feed to **5.0%** under the sensor-driven feed. The mean fraction
+declared `OBSERVED` was **97.33%** in both paths. Thus the sensors cover nearly
+all sampled features on average, but successful/nonzero detections remain
+sparse. The 37.5% relative reduction in nonzero thermal features coincided with
+only a 7.6% reduction in A4 Tot detections (184 to 170 in the recorded
+re-baseline), indicating that the Tot detection path is largely insensitive to
+thermal-stream density at this configuration. This is a measurement, not a
+tuning claim.
+
+The default comparison burns essentially the whole 20x20 grid: the recorded
+burned-area values are 399–400 of 400 cells across the A4 before/after arms
+and 361–399 for A0–A3. Burned area therefore cannot discriminate architectures
+under this pre-existing comparison configuration; this caveat is not caused by
+the sensor-routing change.

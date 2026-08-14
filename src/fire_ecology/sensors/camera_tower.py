@@ -9,6 +9,11 @@ from fire_ecology.environment.fire import FireGrid
 from fire_ecology.environment.terrain import TerrainCell
 
 
+def is_night_time(time_step: int) -> bool:
+    """Return whether the Fire simulation's conventional night window applies."""
+    return (time_step % 24) >= 18 or (time_step % 24) < 6
+
+
 class CameraTower(BaseModel):
     """Fixed camera tower for smoke/fire visual detection.
 
@@ -48,11 +53,9 @@ class CameraTower(BaseModel):
             base_prob *= self.night_penalty
 
         for r, c in fire_grid.active_fire_cells():
+            if not self.covers_cell(r, c, fire_grid.terrain):
+                continue
             dist = np.sqrt((r - self.row) ** 2 + (c - self.col) ** 2)
-            if dist > self.max_range:
-                continue
-            if not self._has_line_of_sight(r, c, fire_grid.terrain):
-                continue
             distance_factor = 1.0 - (dist / self.max_range) * 0.5
             prob = base_prob * distance_factor
             if rng.random() < prob:
@@ -60,6 +63,18 @@ class CameraTower(BaseModel):
                 detections.append((r, c, conf))
 
         return detections
+
+    def covers_cell(
+        self,
+        target_row: int,
+        target_col: int,
+        terrain: list[list[TerrainCell]],
+    ) -> bool:
+        """Return whether this camera covers a target by range and line of sight."""
+        distance = np.hypot(target_row - self.row, target_col - self.col)
+        return distance <= self.max_range and self._has_line_of_sight(
+            target_row, target_col, terrain
+        )
 
     def _has_line_of_sight(
         self,

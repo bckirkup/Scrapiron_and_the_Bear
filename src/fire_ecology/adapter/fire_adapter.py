@@ -20,7 +20,7 @@ from tattletots.models.user import User
 
 from fire_ecology.environment.fire import FireGrid
 from fire_ecology.environment.weather import WeatherState
-from fire_ecology.sensors.camera_tower import CameraTower
+from fire_ecology.sensors.camera_tower import CameraTower, is_night_time
 from fire_ecology.sensors.fuel_moisture import FuelMoistureSensor
 from fire_ecology.sensors.opir import OPIRSatellite
 from fire_ecology.sensors.weather_station import WeatherStation
@@ -466,9 +466,7 @@ class FireEcologyAdapter(DomainAdapter):
         for index in indices:
             row, col = divmod(int(index), self._grid.cols)
             camera_available = any(
-                np.hypot(row - camera.row, col - camera.col) <= camera.max_range
-                and camera._has_line_of_sight(row, col, grid.terrain)
-                for camera in self._cameras
+                camera.covers_cell(row, col, grid.terrain) for camera in self._cameras
             )
             statuses.append(
                 ObservationStatus.OBSERVED.value
@@ -488,12 +486,12 @@ class FireEcologyAdapter(DomainAdapter):
         observe_rng = rng if rng is not None else self.rng
         dim = self._streams[0].dimensionality
         detections: dict[tuple[int, int], float] = {}
-        sensor_detections = self._opir.scan(grid, time_step, observe_rng)
         if self._use_opir:
+            sensor_detections = self._opir.scan(grid, time_step, observe_rng)
             for row, col, confidence in sensor_detections:
                 detections[(row, col)] = max(detections.get((row, col), 0.0), confidence)
 
-        is_night = (time_step % 24) >= 18 or (time_step % 24) < 6
+        is_night = is_night_time(time_step)
         for camera in self._cameras:
             sensor_detections = camera.detect(grid, is_night, observe_rng)
             for row, col, confidence in sensor_detections:

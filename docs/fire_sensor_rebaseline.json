@@ -7,6 +7,37 @@
     "n_cameras": 3,
     "opir_cadence": 5
   },
+  "thermal_input_density_measurement": {
+    "steps": 200,
+    "seed": 42,
+    "mean_nonzero_fraction_before_sensor_driven_stream": 0.08,
+    "mean_nonzero_fraction_after_sensor_driven_stream": 0.05,
+    "mean_observed_fraction_before_sensor_driven_stream": 0.9733333333333334,
+    "mean_observed_fraction_after_sensor_driven_stream": 0.9733333333333334,
+    "measurement_note": "Both paths were evaluated on the same deterministic 200-step external grid sequence and sensor seed."
+  },
+  "a4_opir_ablation_rebaseline": {
+    "before_rng_fix": {
+      "source_snapshot": "1a2e0da",
+      "detections": 164,
+      "suppressions": 1,
+      "cost": 401.5,
+      "burned_cells": 399,
+      "mean_detection_latency": 5.75,
+      "tot_detections": 164,
+      "opir_detections": 0
+    },
+    "after_rng_fix": {
+      "source_snapshot": "working tree after 21bb930 changes",
+      "detections": 185,
+      "suppressions": 1,
+      "cost": 401.5,
+      "burned_cells": 400,
+      "mean_detection_latency": 5.49,
+      "tot_detections": 185,
+      "opir_detections": 0
+    }
+  },
   "before_sensor_driven_stream": {
     "A0 Human": {
       "detections": 581,

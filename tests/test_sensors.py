@@ -39,6 +39,13 @@ class TestOPIRSatellite:
 
 
 class TestCameraTower:
+    def test_covers_cell_uses_range_and_line_of_sight(self) -> None:
+        camera = CameraTower(row=5, col=5, max_range=3.0)
+        grid = FireGrid(rows=20, cols=20)
+
+        assert camera.covers_cell(6, 6, grid.terrain)
+        assert not camera.covers_cell(19, 19, grid.terrain)
+
     def test_detect_nearby_fire(self) -> None:
         rng = np.random.default_rng(42)
         camera = CameraTower(row=5, col=5, max_range=10.0, detection_probability=1.0)
