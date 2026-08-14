@@ -108,12 +108,13 @@ scan rather than perturbing subsequent camera and downstream draws.
 
 ### Thermal input density and comparison caveat
 
-Over the same 200-step, seed-42 external grid sequence, the mean fraction of
+Over the same 200-step external grid sequence with adapter, physics, and sensor
+seed 42, the mean fraction of
 thermal features that were nonzero fell from **8.0%** under the former
-ground-truth feed to **5.0%** under the sensor-driven feed. The mean fraction
+ground-truth feed to **4.9%** under the sensor-driven feed. The mean fraction
 declared `OBSERVED` was **97.33%** in both paths. Thus the sensors cover nearly
 all sampled features on average, but successful/nonzero detections remain
-sparse. The 37.5% relative reduction in nonzero thermal features coincided with
+sparse. The 38.8% relative reduction in nonzero thermal features coincided with
 only a 7.6% reduction in A4 Tot detections (184 to 170 in the recorded
 re-baseline), indicating that the Tot detection path is largely insensitive to
 thermal-stream density at this configuration. This is a measurement, not a
