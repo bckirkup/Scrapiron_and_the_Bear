@@ -1,0 +1,135 @@
+{
+  "comparison_config": {
+    "steps": 100,
+    "grid_rows": 20,
+    "grid_cols": 20,
+    "seed": 42,
+    "n_cameras": 3,
+    "opir_cadence": 5
+  },
+  "thermal_input_density_measurement": {
+    "steps": 200,
+    "seed": 42,
+    "mean_nonzero_fraction_before_sensor_driven_stream": 0.08,
+    "mean_nonzero_fraction_after_sensor_driven_stream": 0.049,
+    "mean_observed_fraction_before_sensor_driven_stream": 0.9733333333333334,
+    "mean_observed_fraction_after_sensor_driven_stream": 0.9733333333333334,
+    "measurement_note": "Both paths were evaluated on the same deterministic 200-step external grid sequence with adapter, physics, and sensor seed 42."
+  },
+  "a4_opir_ablation_rebaseline": {
+    "before_rng_fix": {
+      "source_snapshot": "1a2e0da",
+      "detections": 164,
+      "suppressions": 1,
+      "cost": 401.5,
+      "burned_cells": 399,
+      "mean_detection_latency": 5.75,
+      "tot_detections": 164,
+      "opir_detections": 0
+    },
+    "after_rng_fix": {
+      "source_snapshot": "working tree after 21bb930 changes",
+      "detections": 185,
+      "suppressions": 1,
+      "cost": 401.5,
+      "burned_cells": 400,
+      "mean_detection_latency": 5.49,
+      "tot_detections": 185,
+      "opir_detections": 0
+    }
+  },
+  "before_sensor_driven_stream": {
+    "A0 Human": {
+      "detections": 581,
+      "suppressions": 393,
+      "cost": 2065.0,
+      "burned_cells": 399,
+      "mean_detection_latency": 1.98,
+      "tot_detections": 0,
+      "opir_detections": 0
+    },
+    "A1 Camera ML": {
+      "detections": 859,
+      "suppressions": 361,
+      "cost": 1113.0,
+      "burned_cells": 361,
+      "mean_detection_latency": 0.79,
+      "tot_detections": 0,
+      "opir_detections": 0
+    },
+    "A2 Centralized": {
+      "detections": 30,
+      "suppressions": 17,
+      "cost": 534.0,
+      "burned_cells": 17,
+      "mean_detection_latency": 0.0,
+      "tot_detections": 0,
+      "opir_detections": 0
+    },
+    "A3 Federated": {
+      "detections": 2818,
+      "suppressions": 397,
+      "cost": 1292.5,
+      "burned_cells": 397,
+      "mean_detection_latency": 0.01,
+      "tot_detections": 0,
+      "opir_detections": 0
+    },
+    "A4 BMA": {
+      "detections": 1334,
+      "suppressions": 1,
+      "cost": 401.5,
+      "burned_cells": 400,
+      "mean_detection_latency": 2.06,
+      "tot_detections": 184,
+      "opir_detections": 1150
+    }
+  },
+  "after_sensor_driven_stream": {
+    "A0 Human": {
+      "detections": 581,
+      "suppressions": 393,
+      "cost": 2065.0,
+      "burned_cells": 399,
+      "mean_detection_latency": 1.98,
+      "tot_detections": 0,
+      "opir_detections": 0
+    },
+    "A1 Camera ML": {
+      "detections": 859,
+      "suppressions": 361,
+      "cost": 1113.0,
+      "burned_cells": 361,
+      "mean_detection_latency": 0.79,
+      "tot_detections": 0,
+      "opir_detections": 0
+    },
+    "A2 Centralized": {
+      "detections": 30,
+      "suppressions": 17,
+      "cost": 534.0,
+      "burned_cells": 17,
+      "mean_detection_latency": 0.0,
+      "tot_detections": 0,
+      "opir_detections": 0
+    },
+    "A3 Federated": {
+      "detections": 2818,
+      "suppressions": 397,
+      "cost": 1292.5,
+      "burned_cells": 397,
+      "mean_detection_latency": 0.01,
+      "tot_detections": 0,
+      "opir_detections": 0
+    },
+    "A4 BMA": {
+      "detections": 1335,
+      "suppressions": 0,
+      "cost": 400.0,
+      "burned_cells": 399,
+      "mean_detection_latency": 1.74,
+      "tot_detections": 170,
+      "opir_detections": 1165
+    }
+  }
+}

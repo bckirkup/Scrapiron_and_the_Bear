@@ -135,6 +135,8 @@ def _make_architectures(
                     initial_population=config.n_drones,
                     max_thermal_dim=config.max_thermal_dim,
                     use_opir=True,
+                    n_cameras=config.n_cameras,
+                    opir_cadence=config.opir_cadence,
                 ),
             )
         )
@@ -151,6 +153,8 @@ def _make_architectures(
                         initial_population=config.n_drones,
                         max_thermal_dim=config.max_thermal_dim,
                         use_opir=False,
+                        n_cameras=config.n_cameras,
+                        opir_cadence=config.opir_cadence,
                     ),
                 )
             )

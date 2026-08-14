@@ -7,7 +7,7 @@ import numpy as np
 from fire_ecology.architectures.base import Architecture, ArchitectureResult
 from fire_ecology.environment.fire import FireGrid
 from fire_ecology.environment.weather import WeatherState
-from fire_ecology.sensors.camera_tower import CameraTower
+from fire_ecology.sensors.camera_tower import CameraTower, is_night_time
 from fire_ecology.sensors.opir import OPIRSatellite
 
 
@@ -41,7 +41,7 @@ class CameraMLNetwork(Architecture):
         suppressions: list[tuple[int, int]] = []
         cost = len(self.cameras) * 0.1
 
-        is_night = (time_step % 24) >= 18 or (time_step % 24) < 6
+        is_night = is_night_time(time_step)
         for camera in self.cameras:
             hits = camera.detect(fire_grid, is_night, rng)
             for r, c, conf in hits:

@@ -114,7 +114,7 @@ class TestBMAFireEcology:
         assert enabled_result.ecology_extinct is True
         assert disabled_result.ecology_extinct is True
 
-    def test_opir_ablation_preserves_shared_rng_trajectory(self) -> None:
+    def test_opir_ablation_skips_opir_stream_scan(self) -> None:
         grid_on, weather_on, opir_on, rng_on = _setup()
         enabled = BMAFireEcology(
             n_drones=5,
@@ -137,4 +137,4 @@ class TestBMAFireEcology:
         )
         disabled.step(grid_off, weather_off, opir_off, time_step=0, rng=rng_off)
 
-        assert rng_on.random() == rng_off.random()
+        assert rng_on.random() != rng_off.random()
