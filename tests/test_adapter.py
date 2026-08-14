@@ -88,6 +88,47 @@ class TestFireEcologyAdapter:
             )
         assert ObservationStatus.MISSING.value in quiet.get_streams()[2].current_status
 
+    def test_thermal_stream_uses_sensor_returns_not_grid_truth(self) -> None:
+        quiet_grid = FireGrid(rows=10, cols=10)
+        burning_grid = FireGrid(rows=10, cols=10)
+        burning_grid.ignite(5, 5, 0)
+        quiet = FireEcologyAdapter(
+            grid_rows=10,
+            grid_cols=10,
+            n_cameras=0,
+            opir_cadence=1,
+            seed=42,
+        )
+        burning = FireEcologyAdapter(
+            grid_rows=10,
+            grid_cols=10,
+            n_cameras=0,
+            opir_cadence=1,
+            seed=42,
+        )
+        quiet.opir.miss_rate = 1.0
+        burning.opir.miss_rate = 1.0
+        weather = WeatherState(temperature=30.0, humidity=0.3, wind_speed=5.0)
+
+        quiet.observe_grid(quiet_grid, weather, time_step=0)
+        burning.observe_grid(burning_grid, weather, time_step=0)
+
+        thermal = burning.get_streams()[0]
+        assert np.max(thermal.current_data) == 0.0
+        np.testing.assert_array_equal(
+            quiet.get_streams()[0].current_status,
+            burning.get_streams()[0].current_status,
+        )
+        assert np.all(burning.get_streams()[0].current_status == ObservationStatus.OBSERVED.value)
+
+    def test_night_changes_detection_not_coverage_status(self) -> None:
+        adapter = FireEcologyAdapter(grid_rows=20, grid_cols=20, opir_cadence=5, seed=42)
+
+        day_status = adapter._thermal_status(6, adapter.fire_grid)
+        night_status = adapter._thermal_status(18, adapter.fire_grid)
+
+        np.testing.assert_array_equal(day_status, night_status)
+
     def test_get_users(self) -> None:
         adapter = FireEcologyAdapter()
         users = adapter.get_users()
@@ -199,6 +240,8 @@ class TestFireEcologyAdapter:
 
     def test_thermal_location_inverts_sample_index(self) -> None:
         adapter = FireEcologyAdapter(grid_rows=10, grid_cols=10, max_thermal_dim=5)
+        adapter.opir.miss_rate = 0.0
+        adapter.opir.false_positive_rate = 0.0
         external = FireGrid(rows=10, cols=10)
         external.ignite(4, 9, 0)
         adapter.observe_grid(
@@ -232,6 +275,17 @@ class TestFireEcologyAdapter:
         thermal = adapter.get_streams()[0].current_data
         assert float(np.max(thermal)) == 0.0
         assert unsampled_index not in sampled
+
+    def test_empty_thermal_vector_uses_first_declared_sample(self) -> None:
+        adapter = FireEcologyAdapter(grid_rows=10, grid_cols=10, max_thermal_dim=5)
+
+        location = adapter.infer_report_location(
+            [np.zeros(5)],
+            ["thermal_detection"],
+        )
+
+        first_index = int(adapter._thermal_sample_indices(5)[0])
+        assert location == (first_index // 10, first_index % 10)
 
     def test_dispatch_and_judge_necessary_suppression(self) -> None:
         adapter = FireEcologyAdapter(

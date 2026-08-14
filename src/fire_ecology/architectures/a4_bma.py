@@ -40,6 +40,8 @@ class BMAFireEcology(Architecture):
         initial_population: int = 15,
         max_thermal_dim: int | None = None,
         use_opir: bool = True,
+        n_cameras: int = 3,
+        opir_cadence: int = 5,
     ) -> None:
         self.n_drones = n_drones
         self.body_plan = body_plan or BodyPlan.hybrid()
@@ -49,6 +51,8 @@ class BMAFireEcology(Architecture):
         self._initial_population = initial_population
         self._max_thermal_dim = max_thermal_dim
         self._use_opir = use_opir
+        self._n_cameras = n_cameras
+        self._opir_cadence = opir_cadence
 
         self._adapter: FireEcologyAdapter | None = None
         self._world: World | None = None
@@ -61,6 +65,9 @@ class BMAFireEcology(Architecture):
             grid_cols=self._grid_cols,
             seed=self._seed,
             max_thermal_dim=self._max_thermal_dim,
+            use_opir=self._use_opir,
+            n_cameras=self._n_cameras,
+            opir_cadence=self._opir_cadence,
         )
 
         config = SimulationConfig(

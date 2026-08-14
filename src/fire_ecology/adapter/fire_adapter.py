@@ -44,6 +44,7 @@ class FireEcologyAdapter(DomainAdapter):
         n_weather_stations: int = 4,
         n_fuel_sensors: int = 2,
         opir_cadence: int = 5,
+        use_opir: bool = True,
         seed: int = 42,
         max_thermal_dim: int | None = None,
         base_ignition_rate: float = 0.0001,
@@ -55,6 +56,7 @@ class FireEcologyAdapter(DomainAdapter):
         self._grid = FireGrid(rows=grid_rows, cols=grid_cols)
         self._weather = WeatherState()
         self._opir = OPIRSatellite(cadence=opir_cadence)
+        self._use_opir = use_opir
         self._max_thermal_dim = (
             max_thermal_dim if max_thermal_dim is not None else self.DEFAULT_THERMAL_DIM
         )
@@ -402,8 +404,8 @@ class FireEcologyAdapter(DomainAdapter):
         grid = fire_grid if fire_grid is not None else self._grid
         observe_rng = rng if rng is not None else self.rng
 
-        thermal = self._build_thermal_vector(time_step, grid)
-        thermal_status = self._thermal_status(time_step)
+        thermal = self._build_thermal_vector(time_step, grid, observe_rng)
+        thermal_status = self._thermal_status(time_step, grid)
         thermal_stream = self._streams[0]
         if thermal_stream.metadata is not None:
             thermal_coordinates = self._thermal_metadata(thermal_stream.dimensionality).coordinates
@@ -456,15 +458,16 @@ class FireEcologyAdapter(DomainAdapter):
         )
         self._streams[2].update(fuel_data, fuel_status)
 
-    def _thermal_status(self, time_step: int) -> np.ndarray:
-        """Declare thermal availability from cadence and fixed camera ranges."""
+    def _thermal_status(self, time_step: int, grid: FireGrid) -> np.ndarray:
+        """Declare thermal coverage from cadence, placement, range, and LOS."""
         indices = self._thermal_sample_indices(self._streams[0].dimensionality)
         statuses: list[str] = []
-        opir_available = time_step % self._opir.cadence == 0
+        opir_available = self._use_opir and time_step % self._opir.cadence == 0
         for index in indices:
             row, col = divmod(int(index), self._grid.cols)
             camera_available = any(
                 np.hypot(row - camera.row, col - camera.col) <= camera.max_range
+                and camera._has_line_of_sight(row, col, grid.terrain)
                 for camera in self._cameras
             )
             statuses.append(
@@ -475,23 +478,34 @@ class FireEcologyAdapter(DomainAdapter):
         return np.asarray(statuses, dtype="<U8")
 
     def _build_thermal_vector(
-        self, time_step: int, fire_grid: FireGrid | None = None
+        self,
+        time_step: int,
+        fire_grid: FireGrid | None = None,
+        rng: np.random.Generator | None = None,
     ) -> np.ndarray:
-        """Flatten fire intensity grid into a capped-dimension stream."""
+        """Fuse OPIR and camera detections into the sampled thermal stream."""
         grid = fire_grid if fire_grid is not None else self._grid
+        observe_rng = rng if rng is not None else self.rng
         dim = self._streams[0].dimensionality
-        full_grid = np.zeros(grid.rows * grid.cols)
-        for r in range(grid.rows):
-            for c in range(grid.cols):
-                fs = grid.fire[r][c]
-                full_grid[r * grid.cols + c] = fs.intensity if fs.is_active else 0.0
+        detections: dict[tuple[int, int], float] = {}
+        sensor_detections = self._opir.scan(grid, time_step, observe_rng)
+        if self._use_opir:
+            for row, col, confidence in sensor_detections:
+                detections[(row, col)] = max(detections.get((row, col), 0.0), confidence)
 
-        if full_grid.size <= dim:
-            result = np.zeros(dim)
-            result[: full_grid.size] = full_grid
-            return result
+        is_night = (time_step % 24) >= 18 or (time_step % 24) < 6
+        for camera in self._cameras:
+            sensor_detections = camera.detect(grid, is_night, observe_rng)
+            for row, col, confidence in sensor_detections:
+                detections[(row, col)] = max(detections.get((row, col), 0.0), confidence)
 
-        return full_grid[self._thermal_sample_indices(dim)]
+        return np.asarray(
+            [
+                detections.get((int(index) // grid.cols, int(index) % grid.cols), 0.0)
+                for index in self._thermal_sample_indices(dim)
+            ],
+            dtype=float,
+        )
 
     def _thermal_sample_indices(self, thermal_dim: int | None = None) -> NDArray[np.int64]:
         """Return full-grid indices represented by thermal stream positions."""
