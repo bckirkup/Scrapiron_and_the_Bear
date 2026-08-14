@@ -326,19 +326,57 @@ class FireEcologyAdapter(DomainAdapter):
         self,
         stream_data: list[NDArray[np.float64]],
         stream_labels: list[str],
-    ) -> EventLocation:
-        """Infer fire location from the sampled thermal stream peak.
+    ) -> EventLocation | None:
+        """Infer fire location from the strongest normalized stream evidence.
 
-        Each thermal value represents one sampled grid cell; unsampled cells
-        are outside this stream's spatial resolution.
+        Each stream is normalized independently before evidence is compared so
+        that sensor units do not determine which modality wins. The winning
+        feature is mapped through that stream's declared sensor geometry.
         """
+        best = self._best_declared_geometry_feature(stream_data, stream_labels)
+        if best is None:
+            return None
+        _, _, _, coordinate = best
+        return coordinate
+
+    def _best_declared_geometry_feature(
+        self,
+        stream_data: list[NDArray[np.float64]],
+        stream_labels: list[str],
+    ) -> tuple[int, float, int, EventLocation] | None:
+        """Return the strongest normalized feature and its declared location."""
+        streams_by_label = {stream.label: stream for stream in self._streams}
+        best: tuple[int, float, int, EventLocation] | None = None
         for data, label in zip(stream_data, stream_labels, strict=False):
-            if label == "thermal_detection" and data.size > 0:
-                peak_idx = int(np.argmax(data))
-                cols = self._grid.cols
-                full_idx = int(self._thermal_sample_indices(data.size)[peak_idx])
-                return (full_idx // cols, full_idx % cols)
-        return (0, 0)
+            stream = streams_by_label.get(label)
+            if stream is None or stream.metadata is None:
+                continue
+            coordinates = stream.metadata.sensor_coordinates
+            if coordinates is None:
+                coordinates = stream.metadata.coordinates
+            if coordinates is None:
+                continue
+            finite = np.isfinite(data)
+            if not np.any(finite):
+                continue
+            magnitudes = np.abs(data)
+            magnitudes[~finite] = 0.0
+            scale = float(np.sqrt(np.mean(magnitudes**2)))
+            if scale <= 0.0:
+                continue
+            feature_index = int(np.argmax(magnitudes))
+            if feature_index >= len(coordinates) or coordinates[feature_index] is None:
+                continue
+            coordinate = coordinates[feature_index]
+            if coordinate is None or len(coordinate) < 2:
+                continue
+            score = float(magnitudes[feature_index] / scale)
+            location = (int(round(coordinate[0])), int(round(coordinate[1])))
+            modalities = stream.metadata.modality or []
+            tier = 0 if any("thermal" in (modality or "").lower() for modality in modalities) else 1
+            if best is None or (tier, -score) < (best[0], -best[1]):
+                best = (tier, score, feature_index, location)
+        return best
 
     def score_relevance(self, signal_vector: NDArray[np.float64], user: User) -> float:
         from tattletots.engine.relevance import score_report_relevance
