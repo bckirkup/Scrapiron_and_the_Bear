@@ -35,8 +35,6 @@ else:
         "    Ensure all repos are cloned as siblings under a common workspace root."
     )
 
-from baseline_parallel import resolve_worker_count, run_process_pool
-
 
 def _safe_path_under_base(raw: Path, base: Path) -> Path:
     resolved = raw.resolve()
@@ -127,7 +125,6 @@ def _build_factor_grid(config_data: dict[str, Any], smoke_test: bool) -> dict[st
 def _build_runs_to_execute(
     config_data: dict[str, Any],
     *,
-    smoke_test: bool,
     steps: int,
     seeds: list[int],
     grid_rows: int,
@@ -199,8 +196,7 @@ def _baseline_summary_row(name: str, run_res: dict[str, Any]) -> tuple[str, str,
 def _print_run_summary(results_key: dict[str, Any]) -> None:
     print("\n=== Fire Ecology Baselines Parameter Scan Summary ===")
     print(
-        f"{'Run Name':<55} | {'Status':<10} | {'Time (s)':<8} | "
-        f"{'A2 Burned':<10} | {'A2 Cost':<10}"
+        f"{'Run Name':<55} | {'Status':<10} | {'Time (s)':<8} | {'A2 Burned':<10} | {'A2 Cost':<10}"
     )
     print("-" * 105)
     for name, run_res in results_key["runs"].items():
@@ -247,6 +243,8 @@ def _execute_runs(
     all_results: dict[str, Any],
     logs: list[str],
 ) -> None:
+    from baseline_parallel import run_process_pool
+
     def _store_success(run: dict[str, Any], res: dict[str, Any]) -> None:
         name = run["name"]
         results_key["runs"][name] = {
@@ -305,6 +303,8 @@ def _execute_runs(
 
 
 def main() -> int:
+    from baseline_parallel import resolve_worker_count
+
     parser = argparse.ArgumentParser(description="Parameter Scan Runner for Fire Ecology Baselines")
     parser.add_argument(
         "--config",
@@ -354,7 +354,6 @@ def main() -> int:
     factor_grid = _build_factor_grid(config_data, args.smoke_test)
     runs_to_execute = _build_runs_to_execute(
         config_data,
-        smoke_test=args.smoke_test,
         steps=steps,
         seeds=seeds,
         grid_rows=grid_rows,

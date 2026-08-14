@@ -38,7 +38,11 @@ def main(argv: list[str] | None = None) -> int:
             "seed": args.seed,
             "steps": args.steps,
         },
-        "simulation": {"initial_population": args.population, "max_steps": args.steps, "seed": args.seed},
+        "simulation": {
+            "initial_population": args.population,
+            "max_steps": args.steps,
+            "seed": args.seed,
+        },
     }
     if args.output:
         cli_overrides["output"] = str(args.output)

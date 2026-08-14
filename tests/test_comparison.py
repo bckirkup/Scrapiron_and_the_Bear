@@ -115,9 +115,9 @@ class TestComparison:
         results = run_comparison(config)
         for r in results:
             if r.detections > 0:
-                assert r.mean_detection_latency < float("inf"), (
-                    f"{r.name}: latency is inf despite {r.detections} detections"
-                )
+                assert r.mean_detection_latency < float(
+                    "inf"
+                ), f"{r.name}: latency is inf despite {r.detections} detections"
 
     def test_detection_latency_not_inf_with_a4(self) -> None:
         """A4/BMA also produces finite detection latency."""

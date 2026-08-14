@@ -57,11 +57,20 @@ packages = ["src/fire_ecology"]
 [tool.ruff]
 target-version = "py311"
 line-length = 100
-src = ["src", "tests"]
+src = ["src", "tests", "scripts", "baselines"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "ARG", "C901", "N"]
 ignore = ["E501", "SIM108"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/fire_ecology/adapter/fire_adapter.py" = ["ARG002"]  # Interface signatures exempted by Sonar S1172.
+"src/fire_ecology/architectures/a0_human.py" = ["ARG002"]  # Interface signature required by Architecture.
+"src/fire_ecology/architectures/a1_camera_ml.py" = ["ARG002"]  # Interface signature required by Architecture.
+
+[tool.ruff.lint.mccabe]
+# Whole-repository CI ceiling; this value only ratchets downward.
+max-complexity = 10
 
 [tool.ruff.lint.isort]
 known-first-party = ["fire_ecology"]
