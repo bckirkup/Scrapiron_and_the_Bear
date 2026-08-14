@@ -149,7 +149,7 @@ class FireEcologyAdapter(DomainAdapter):
         )
         return StreamMetadata(
             coordinates=coordinates,
-            sensor_coordinates=[None] * dimensionality,
+            sensor_coordinates=list(coordinates),
             modality=["thermal"] * dimensionality,
             identity=[None] * dimensionality,
             footprints=[(stride, stride)] * dimensionality,

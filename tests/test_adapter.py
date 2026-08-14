@@ -68,6 +68,29 @@ class TestFireEcologyAdapter:
                 quiet_stream.current_status, burning_stream.current_status
             )
 
+    def test_thermal_sensor_coordinates_are_static_and_populated(self) -> None:
+        quiet_grid = FireGrid(rows=20, cols=20)
+        burning_grid = FireGrid(rows=20, cols=20)
+        burning_grid.ignite(10, 10, 0)
+        quiet = FireEcologyAdapter(grid_rows=20, grid_cols=20, seed=42)
+        burning = FireEcologyAdapter(grid_rows=20, grid_cols=20, seed=42)
+        weather = WeatherState(temperature=30.0, humidity=0.3, wind_speed=5.0)
+
+        initial = quiet.get_streams()[0].metadata
+        assert initial is not None
+        assert initial.sensor_coordinates is not None
+        assert all(coordinate is not None for coordinate in initial.sensor_coordinates)
+
+        for time_step in (1, 5):
+            quiet.observe_grid(quiet_grid, weather, time_step=time_step)
+            burning.observe_grid(burning_grid, weather, time_step=time_step)
+            quiet_metadata = quiet.get_streams()[0].metadata
+            burning_metadata = burning.get_streams()[0].metadata
+            assert quiet_metadata is not None
+            assert burning_metadata is not None
+            assert quiet_metadata.sensor_coordinates == initial.sensor_coordinates
+            assert burning_metadata.sensor_coordinates == initial.sensor_coordinates
+
     def test_statuses_use_sensor_availability_not_fire_state(self) -> None:
         quiet_grid = FireGrid(rows=20, cols=20)
         burning_grid = FireGrid(rows=20, cols=20)
