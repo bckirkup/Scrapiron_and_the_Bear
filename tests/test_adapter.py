@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+from tattletots.interface.adapter_conformance import assert_adapter_conformance
 from tattletots.models.dispatch_target import DispatchTarget
 from tattletots.models.observation import ObservationStatus
 from tattletots.models.report import Report
@@ -12,7 +13,25 @@ from fire_ecology.environment.fire import FireGrid
 from fire_ecology.environment.weather import WeatherState
 
 
+def _fire_state_independence_factory() -> tuple[FireEcologyAdapter, FireEcologyAdapter]:
+    quiet = FireEcologyAdapter(grid_rows=10, grid_cols=10, seed=42)
+    active = FireEcologyAdapter(grid_rows=10, grid_cols=10, seed=42)
+    for row, col in ((2, 3), (5, 7), (8, 1)):
+        active.fire_grid.ignite(row, col, 1.0)
+    return quiet, active
+
+
 class TestFireEcologyAdapter:
+    def test_adapter_conforms_to_published_instrument_contract(self) -> None:
+        report = assert_adapter_conformance(
+            FireEcologyAdapter(grid_rows=10, grid_cols=10, seed=42),
+            steps=20,
+            state_independence_factory=_fire_state_independence_factory,
+            strict_state_independence=True,
+        )
+
+        assert report.valid
+
     def test_get_streams(self) -> None:
         adapter = FireEcologyAdapter(grid_rows=10, grid_cols=10)
         streams = adapter.get_streams()
@@ -299,16 +318,41 @@ class TestFireEcologyAdapter:
         assert float(np.max(thermal)) == 0.0
         assert unsampled_index not in sampled
 
-    def test_empty_thermal_vector_uses_first_declared_sample(self) -> None:
+    def test_empty_thermal_vector_abstains_instead_of_returning_origin(self) -> None:
         adapter = FireEcologyAdapter(grid_rows=10, grid_cols=10, max_thermal_dim=5)
 
-        location = adapter.infer_report_location(
-            [np.zeros(5)],
-            ["thermal_detection"],
+        assert adapter.infer_report_location([np.zeros(5)], ["thermal_detection"]) is None
+
+    def test_weather_feature_decodes_to_declared_station(self) -> None:
+        adapter = FireEcologyAdapter(grid_rows=10, grid_cols=10, n_weather_stations=1)
+        stream = next(
+            stream for stream in adapter.get_streams() if stream.label == "weather_observations"
+        )
+        data = np.zeros(stream.dimensionality)
+        feature_index = 2
+        data[feature_index] = 1.0
+
+        location = adapter.infer_report_location([data], [stream.label])
+
+        assert location == tuple(
+            int(value) for value in stream.metadata.sensor_coordinates[feature_index]
         )
 
-        first_index = int(adapter._thermal_sample_indices(5)[0])
-        assert location == (first_index // 10, first_index % 10)
+    def test_each_declared_feature_round_trips_through_decoder(self) -> None:
+        adapter = FireEcologyAdapter(grid_rows=10, grid_cols=10, max_thermal_dim=10)
+        for stream in adapter.get_streams():
+            metadata = stream.metadata
+            if metadata is None or metadata.sensor_coordinates is None:
+                continue
+            for feature_index, coordinate in enumerate(metadata.sensor_coordinates):
+                if coordinate is None:
+                    continue
+                data = np.zeros(stream.dimensionality)
+                data[feature_index] = 1.0
+
+                location = adapter.infer_report_location([data], [stream.label])
+
+                assert location == tuple(int(value) for value in coordinate)
 
     def test_dispatch_and_judge_necessary_suppression(self) -> None:
         adapter = FireEcologyAdapter(

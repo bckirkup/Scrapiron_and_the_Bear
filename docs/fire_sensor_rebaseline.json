@@ -7,6 +7,15 @@
     "n_cameras": 3,
     "opir_cadence": 5
   },
+  "instrument_validation_after_declared_geometry_decoder": {
+    "steps": 200,
+    "decoder_precision": 0.7777777777777778,
+    "static_prior_precision": 0.35555555555555557,
+    "inferability_precision": 0.8444444444444444,
+    "chance_baseline": 0.0025,
+    "candidate_locations": 400,
+    "decoder_note": "The incumbent thermal-only decoder scored 0.778. The tiered decoder restores equivalent precision while honoring declared weather and fuel geometry when no event-detection stream has usable evidence."
+  },
   "thermal_input_density_measurement": {
     "steps": 200,
     "seed": 42,

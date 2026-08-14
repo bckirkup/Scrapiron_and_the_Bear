@@ -44,16 +44,18 @@ Fresh default adapter, 200 steps:
 | Uniform chance | 0.100 | 0.0025 |
 | Candidate locations | 10 | 400 |
 
-The decoder drop is expected: sparse, noisy sensor returns replace the former
-direct intensity feed. The lower measured static-prior value is a fresh
+The current declared-geometry decoder measures **0.778** precision (the
+incumbent thermal-only decoder also measured **0.778**); the modality tier keeps
+event-detection streams ahead of weather and fuel context while still honoring
+their declared coordinates when they are the only evidence. The lower measured
+static-prior value is a fresh
 200-step remeasurement after the sensor calls consume the adapter RNG stream;
 it remains the localization null. The instrument is valid and inferability is
 well above the 0.25% uniform chance over the declared 20x20 frame.
 
-When the sensor-driven vector is all zero, `infer_report_location` retains its
-existing `argmax` behavior and returns the first declared thermal sample. This
-is a real abstention/degeneracy characteristic of the unchanged decoder, not a
-metadata workaround.
+When no input stream with declared geometry contains usable evidence,
+`infer_report_location` abstains with `None`; TattleTots preserves its existing
+spatial fallback rather than converting abstention into the origin `(0, 0)`.
 
 ## Comparison re-baseline
 
