@@ -6,27 +6,21 @@ These are real measurements from two engine configurations, not a
 reconstruction of one result. The Fire source for both measurements is
 `42eb583` (`devin/1786749308-refresh-tattletots-pin`). The prior-engine
 measurement used TattleTots `d4cfee1`; the current-engine measurement uses
-TattleTots `cee59f93f6973fa7fefb2f87dbb40a8ce0095113`. Both comparison
-measurements used:
+TattleTots `cee59f93f6973fa7fefb2f87dbb40a8ce0095113`. Both comparison and
+instrument measurements used the committed harness:
 
 ```text
-uv run --frozen fire-ecology compare --steps 100 --seed 42
+uv run --frozen python scripts/rebaseline_fire_measurements.py
 ```
 
-The comparison configuration was 100 steps, seed 42, a 20x20 grid, three
-cameras, and OPIR cadence 5. The OPIR-ablation arm used the same command with
-`--a4-opir-ablation`. Instrument validation used:
-
-```text
-uv run --frozen python /home/ubuntu/conformance-audit/measure_instruments.py \
-  /home/ubuntu/repos/Scrapiron-and-the-Bear fire
-```
-
-That validation used 200 steps, seed 42, the 20x20 default grid, three
-cameras, OPIR cadence 5, 400 candidate locations, and 45 event steps. The
-thermal-density measurement used the same 200-step seed-42 external grid
-sequence and sensor configuration. The current-engine comparison values are
-also preserved in `/home/ubuntu/conformance-audit/fire_current.json`.
+The harness runs the 100-step comparison and OPIR-ablation arms plus the
+200-step instrument validation. The comparison configuration was seed 42, a
+20x20 grid, three cameras, and OPIR cadence 5. Instrument validation used the
+same seed, grid, cameras, and cadence, with 400 candidate locations and 45
+event steps. The thermal-density measurement was not produced by this
+harness: it came from an ad-hoc script that was never committed and no longer
+exists. The current-engine comparison values are preserved in the
+user-supplied raw measurement output.
 
 Engine-coupled arms, specifically A4 and its OPIR ablation, move when the
 TattleTots engine pin moves. A0-A3 did not move, and instrument validation did
@@ -97,18 +91,18 @@ cameras, OPIR cadence 5.
 
 | Architecture | Metric | Before ground-truth feed | Prior sensor-driven measurement (`d4cfee1`) | Current sensor-driven measurement (`cee59f9`) |
 |---|---|---:|---:|---:|
-| A0 Human | detections | 581 | 581 | 0 |
-| A0 Human | cost | 2065.0 | 2065.0 | 0.0 |
-| A0 Human | burned cells | 399 | 399 | 0 |
-| A1 Camera ML | detections | 859 | 859 | 0 |
-| A1 Camera ML | cost | 1113.0 | 1113.0 | 0.0 |
-| A1 Camera ML | burned cells | 361 | 361 | 0 |
-| A2 Centralized | detections | 30 | 30 | 0 |
-| A2 Centralized | cost | 534.0 | 534.0 | 0.0 |
-| A2 Centralized | burned cells | 17 | 17 | 0 |
-| A3 Federated | detections | 2818 | 2818 | 0 |
-| A3 Federated | cost | 1292.5 | 1292.5 | 0 |
-| A3 Federated | burned cells | 397 | 397 | 0 |
+| A0 Human | detections | 581 | 581 | 581 |
+| A0 Human | cost | 2065.0 | 2065.0 | 2065.0 |
+| A0 Human | burned cells | 399 | 399 | 399 |
+| A1 Camera ML | detections | 859 | 859 | 859 |
+| A1 Camera ML | cost | 1113.0 | 1113.0 | 1113.0 |
+| A1 Camera ML | burned cells | 361 | 361 | 361 |
+| A2 Centralized | detections | 30 | 30 | 30 |
+| A2 Centralized | cost | 534.0 | 534.0 | 534.0 |
+| A2 Centralized | burned cells | 17 | 17 | 17 |
+| A3 Federated | detections | 2818 | 2818 | 2818 |
+| A3 Federated | cost | 1292.5 | 1292.5 | 1292.5 |
+| A3 Federated | burned cells | 397 | 397 | 397 |
 | A4 BMA | detections | 1334 | 1335 | 1369 |
 | A4 BMA | suppressions | 1 | 0 | 0 |
 | A4 BMA | cost | 401.5 | 400.0 | 400.0 |
@@ -147,6 +141,9 @@ subsequent camera and downstream draws.
 ### Thermal input density and comparison caveat
 
 The density measurements below are scoped to TattleTots engine `d4cfee1`.
+They were produced by an ad-hoc script that was never committed and no
+longer exists; they are not reproducible from this repository, and this
+rebaseline does not attribute them to the committed comparison harness.
 Over the same 200-step external grid sequence with adapter, physics, and sensor
 seed 42, the mean fraction of thermal features that were nonzero fell from
 **8.0%** under the former ground-truth feed to **4.9%** under the sensor-driven
