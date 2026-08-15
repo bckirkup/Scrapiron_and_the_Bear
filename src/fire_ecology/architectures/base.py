@@ -27,6 +27,23 @@ class ArchitectureResult(BaseModel):
     opir_detections: int = Field(
         default=0, ge=0, description="Detections attributed to the OPIR backstop"
     )
+    opir_shadow_detections: int = Field(
+        default=0,
+        ge=0,
+        description=(
+            "OPIR detections withheld from `detections` because the backstop was ablated; "
+            "these would have been added by the OPIR-assisted path"
+        ),
+    )
+    opir_backstop_ablated: bool = Field(
+        default=False,
+        description="Whether the OPIR backstop was withheld from the reported detections",
+    )
+    reports_issued: int = Field(default=0, ge=0, description="Agent reports issued this step")
+    correct_reports: int = Field(
+        default=0, ge=0, description="Agent reports verified against event state"
+    )
+    false_alarms: int = Field(default=0, ge=0, description="Agent reports not matching any event")
     living_population: int | None = Field(
         default=None, ge=0, description="Living Tots after this step, when applicable"
     )

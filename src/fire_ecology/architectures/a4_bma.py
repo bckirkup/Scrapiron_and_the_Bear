@@ -13,6 +13,7 @@ from tattletots.engine.world import World
 
 from fire_ecology.adapter.fire_adapter import FireEcologyAdapter
 from fire_ecology.architectures.base import Architecture, ArchitectureResult
+from fire_ecology.architectures.ecology_options import EcologyMeasurementOptions
 from fire_ecology.drones.body_plan import BodyPlan
 from fire_ecology.environment.fire import FireGrid
 from fire_ecology.environment.weather import WeatherState
@@ -28,6 +29,12 @@ class BMAFireEcology(Architecture):
     3. Run one TattleTots engine step (agents compress, report, evolve).
     4. Map Tot escalation count to fire-grid detections.
     5. Apply suppressions with body-plan-dependent effectiveness.
+
+    ``options`` selects the measurement path.  With
+    ``EcologyMeasurementOptions.ablate_opir_backstop`` the OPIR satellite still
+    feeds the thermal stream and still consumes its random draws, but its hits
+    are withheld from ``detections`` and counted in ``opir_shadow_detections``,
+    so the reported detections are agent-only.
     """
 
     def __init__(
@@ -42,6 +49,7 @@ class BMAFireEcology(Architecture):
         use_opir: bool = True,
         n_cameras: int = 3,
         opir_cadence: int = 5,
+        options: EcologyMeasurementOptions | None = None,
     ) -> None:
         self.n_drones = n_drones
         self.body_plan = body_plan or BodyPlan.hybrid()
@@ -53,6 +61,7 @@ class BMAFireEcology(Architecture):
         self._use_opir = use_opir
         self._n_cameras = n_cameras
         self._opir_cadence = opir_cadence
+        self._options = options or EcologyMeasurementOptions()
 
         self._adapter: FireEcologyAdapter | None = None
         self._world: World | None = None
@@ -76,6 +85,7 @@ class BMAFireEcology(Architecture):
             seed=self._seed,
             max_steps=10000,
             mutation_rate=0.1,
+            **self._options.engine_kwargs(),
         )
         self._world = World(config=config)
 
@@ -122,10 +132,12 @@ class BMAFireEcology(Architecture):
         #    active fire cell, simulating the collective Tot ecology directing
         #    human attention to the worst hotspots.
         detections = self._tot_detections(record.reports_issued, fire_grid)
+        tot_detections = len(detections)
 
-        # 5. OPIR backstop
+        # 5. OPIR backstop, ablatable.  The scan always runs so that the ablated
+        #    arm consumes the same random draws as its baseline.
         opir_hits = opir.scan(fire_grid, time_step, rng)
-        opir_detections = self._add_opir_detections(detections, opir_hits)
+        opir_detections, opir_shadow_detections = self._resolve_opir_backstop(detections, opir_hits)
 
         # 6. Suppression using body-plan effectiveness
         suppressions = self._apply_suppressions(detections, fire_grid)
@@ -139,7 +151,12 @@ class BMAFireEcology(Architecture):
             suppressions=suppressions,
             escalations=record.reports_issued,
             cost=cost,
-            tot_detections=len(detections) - opir_detections,
+            tot_detections=tot_detections,
+            opir_shadow_detections=opir_shadow_detections,
+            opir_backstop_ablated=self._options.ablate_opir_backstop,
+            reports_issued=record.reports_issued,
+            correct_reports=record.correct_reports,
+            false_alarms=record.false_alarms,
             opir_detections=opir_detections,
             living_population=self.living_population,
             ecology_extinct=self.living_population == 0,
@@ -163,16 +180,21 @@ class BMAFireEcology(Architecture):
                     detections.append(cell)
         return detections
 
-    def _add_opir_detections(
+    def _resolve_opir_backstop(
         self, detections: list[tuple[int, int]], opir_hits: list[tuple[int, int, float]]
-    ) -> int:
-        opir_detections = 0
-        if self._use_opir:
-            for r, c, _conf in opir_hits:
-                if (r, c) not in detections:
-                    detections.append((r, c))
-                    opir_detections += 1
-        return opir_detections
+    ) -> tuple[int, int]:
+        """Apply or withhold the OPIR backstop, returning (applied, withheld) counts."""
+        if not self._use_opir:
+            return 0, 0
+        novel = [(r, c) for r, c, _conf in opir_hits if (r, c) not in detections]
+        deduplicated: list[tuple[int, int]] = []
+        for cell in novel:
+            if cell not in deduplicated:
+                deduplicated.append(cell)
+        if self._options.ablate_opir_backstop:
+            return 0, len(deduplicated)
+        detections.extend(deduplicated)
+        return len(deduplicated), 0
 
     def _apply_suppressions(
         self, detections: list[tuple[int, int]], fire_grid: FireGrid

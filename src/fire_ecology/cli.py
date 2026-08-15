@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
+from fire_ecology.architectures.ecology_options import EcologyMeasurementOptions
 from fire_ecology.comparison import (
     ComparisonConfig,
     format_comparison_json,
@@ -63,6 +65,11 @@ def _run_compare(args: argparse.Namespace) -> None:
         include_a4=not args.no_a4,
         include_a4_opir_ablation=args.a4_opir_ablation,
         max_thermal_dim=args.max_thermal_dim,
+        a4_options=EcologyMeasurementOptions(
+            ablate_opir_backstop=args.a4_ablate_opir_backstop,
+            grounded_input_fraction=args.a4_grounded_input_fraction,
+            grounded_attractiveness_multiplier=args.a4_grounded_multiplier,
+        ),
     )
     results = run_comparison(config)
 
@@ -110,10 +117,30 @@ def main(argv: list[str] | None = None) -> None:
     cmp_parser.add_argument(
         "--a4-opir-ablation",
         action="store_true",
-        help="Include a second A4 arm with the OPIR backstop disabled",
+        help="Include a second A4 arm with the OPIR sensor and backstop disabled",
+    )
+    cmp_parser.add_argument(
+        "--a4-ablate-opir-backstop",
+        action="store_true",
+        help=(
+            "Withhold OPIR hits from the A4 detections while keeping the OPIR sensor feed, "
+            "making agent-only detection visible (default off)"
+        ),
+    )
+    cmp_parser.add_argument(
+        "--a4-grounded-input-fraction",
+        type=float,
+        default=0.0,
+        help="Fraction of A4 agent input slots reserved for grounded raw streams",
+    )
+    cmp_parser.add_argument(
+        "--a4-grounded-multiplier",
+        type=float,
+        default=1.0,
+        help="Attractiveness multiplier for grounded raw streams in A4 stream selection",
     )
 
-    effective_argv = argv if argv is not None else []
+    effective_argv = argv if argv is not None else sys.argv[1:]
     if effective_argv and effective_argv[0] not in ("sim", "batch", "compare", "-h", "--help"):
         effective_argv = ["sim", *effective_argv]
     elif not effective_argv:
