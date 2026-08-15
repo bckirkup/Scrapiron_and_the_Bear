@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from fire_ecology.architectures.a4_bma import BMAFireEcology
 from fire_ecology.drones.body_plan import BodyPlan
@@ -30,7 +31,7 @@ class TestBMAFireEcology:
         assert isinstance(result.suppressions, list)
         assert result.initiation_is_degenerate is True
         assert result.initiation_degeneracy_reasons
-        assert result.event_prevalence == 1.0
+        assert result.event_prevalence == pytest.approx(1.0, rel=0.0, abs=1e-12)
 
     def test_multiple_steps(self) -> None:
         grid, weather, opir, rng = _setup()

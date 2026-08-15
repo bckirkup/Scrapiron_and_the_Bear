@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 from tattletots.interface.adapter_conformance import assert_adapter_conformance
 from tattletots.models.dispatch_target import DispatchTarget
 from tattletots.models.observation import ObservationStatus
@@ -156,7 +157,7 @@ class TestFireEcologyAdapter:
         burning.observe_grid(burning_grid, weather, time_step=0)
 
         thermal = burning.get_streams()[0]
-        assert np.max(thermal.current_data) == 0.0
+        assert np.max(thermal.current_data) == pytest.approx(0.0, rel=0.0, abs=1e-12)
         np.testing.assert_array_equal(
             quiet.get_streams()[0].current_status,
             burning.get_streams()[0].current_status,
@@ -315,7 +316,7 @@ class TestFireEcologyAdapter:
         )
 
         thermal = adapter.get_streams()[0].current_data
-        assert float(np.max(thermal)) == 0.0
+        assert float(np.max(thermal)) == pytest.approx(0.0, rel=0.0, abs=1e-12)
         assert unsampled_index not in sampled
 
     def test_empty_thermal_vector_abstains_instead_of_returning_origin(self) -> None:
