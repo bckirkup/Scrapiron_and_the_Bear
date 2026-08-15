@@ -17,6 +17,7 @@ from fire_ecology.architectures.a2_centralized import CentralizedOptimizer
 from fire_ecology.architectures.a3_federated import FederatedEdge
 from fire_ecology.architectures.a4_bma import BMAFireEcology
 from fire_ecology.architectures.base import Architecture
+from fire_ecology.architectures.ecology_options import EcologyMeasurementOptions
 from fire_ecology.drones.body_plan import BodyPlan
 from fire_ecology.environment.fire import FireGrid
 from fire_ecology.environment.weather import WeatherState
@@ -39,6 +40,11 @@ class ComparisonResult:
     suppression_success_rate: float = 0.0
     tot_detections: int = 0
     opir_detections: int = 0
+    opir_shadow_detections: int = 0
+    opir_backstop_ablated: bool = False
+    reports_issued: int = 0
+    correct_reports: int = 0
+    false_alarms: int = 0
     living_population_trajectory: list[int] = field(default_factory=list)
     ecology_extinct: bool = False
     event_prevalence: float = 0.0
@@ -65,9 +71,10 @@ class ComparisonConfig:
     include_a4: bool = True
     include_a4_opir_ablation: bool = False
     max_thermal_dim: int | None = None
+    a4_options: EcologyMeasurementOptions = field(default_factory=EcologyMeasurementOptions)
 
 
-def _build_fresh_grid(config: ComparisonConfig, _rng: np.random.Generator) -> FireGrid:
+def build_fresh_grid(config: ComparisonConfig, _rng: np.random.Generator) -> FireGrid:
     """Create and seed a fire grid with a deterministic initial ignition."""
     grid = FireGrid(rows=config.grid_rows, cols=config.grid_cols)
     mid_r, mid_c = config.grid_rows // 2, config.grid_cols // 2
@@ -84,7 +91,7 @@ def _build_cameras(config: ComparisonConfig) -> list[CameraTower]:
     return cameras
 
 
-def _evolve_weather(
+def evolve_weather(
     time_step: int, rng: np.random.Generator, volatility: float = 1.0
 ) -> WeatherState:
     """Deterministic weather evolution (same as adapter)."""
@@ -137,6 +144,7 @@ def _make_architectures(
                     use_opir=True,
                     n_cameras=config.n_cameras,
                     opir_cadence=config.opir_cadence,
+                    options=config.a4_options,
                 ),
             )
         )
@@ -185,7 +193,7 @@ def run_comparison(config: ComparisonConfig | None = None) -> list[ComparisonRes
     for name, arch in archs:
         rng = np.random.default_rng(config.seed)
         weather_rng = np.random.default_rng(config.seed + 1)
-        grid = _build_fresh_grid(config, rng)
+        grid = build_fresh_grid(config, rng)
         opir = OPIRSatellite(cadence=config.opir_cadence)
         metrics = FireMetrics()
 
@@ -196,6 +204,11 @@ def run_comparison(config: ComparisonConfig | None = None) -> list[ComparisonRes
         living_population_trajectory: list[int] = []
         total_tot_detections = 0
         total_opir_detections = 0
+        total_opir_shadow_detections = 0
+        total_reports_issued = 0
+        total_correct_reports = 0
+        total_false_alarms = 0
+        opir_backstop_ablated = False
         initiation_is_degenerate = False
         initiation_degeneracy_reasons: list[str] = []
         event_prevalence = 0.0
@@ -204,7 +217,7 @@ def run_comparison(config: ComparisonConfig | None = None) -> list[ComparisonRes
         mean_attention_carrying_capacity = 0.0
 
         for step in range(config.steps):
-            weather = _evolve_weather(step, weather_rng, config.weather_volatility)
+            weather = evolve_weather(step, weather_rng, config.weather_volatility)
             grid.step(weather, step, rng)
             grid.stochastic_ignition(weather, step, rng, base_rate=config.base_ignition_rate)
 
@@ -215,6 +228,11 @@ def run_comparison(config: ComparisonConfig | None = None) -> list[ComparisonRes
             total_cost += result.cost
             total_tot_detections += result.tot_detections
             total_opir_detections += result.opir_detections
+            total_opir_shadow_detections += result.opir_shadow_detections
+            total_reports_issued += result.reports_issued
+            total_correct_reports += result.correct_reports
+            total_false_alarms += result.false_alarms
+            opir_backstop_ablated = result.opir_backstop_ablated
             event_prevalence = result.event_prevalence
             grounded_yield_share = result.grounded_yield_share
             attention_solvent_fraction = result.attention_solvent_fraction
@@ -257,6 +275,11 @@ def run_comparison(config: ComparisonConfig | None = None) -> list[ComparisonRes
                 suppression_success_rate=round(metrics.suppression_success_rate, 4),
                 tot_detections=total_tot_detections,
                 opir_detections=total_opir_detections,
+                opir_shadow_detections=total_opir_shadow_detections,
+                opir_backstop_ablated=opir_backstop_ablated,
+                reports_issued=total_reports_issued,
+                correct_reports=total_correct_reports,
+                false_alarms=total_false_alarms,
                 living_population_trajectory=living_population_trajectory,
                 ecology_extinct=any(population == 0 for population in living_population_trajectory),
                 event_prevalence=event_prevalence,
@@ -307,6 +330,11 @@ def format_comparison_json(results: list[ComparisonResult]) -> str:
                 "suppression_success_rate": r.suppression_success_rate,
                 "tot_detections": r.tot_detections,
                 "opir_detections": r.opir_detections,
+                "opir_shadow_detections": r.opir_shadow_detections,
+                "opir_backstop_ablated": r.opir_backstop_ablated,
+                "reports_issued": r.reports_issued,
+                "correct_reports": r.correct_reports,
+                "false_alarms": r.false_alarms,
                 "tot_detection_share": (
                     r.tot_detections / (r.tot_detections + r.opir_detections)
                     if r.tot_detections + r.opir_detections
