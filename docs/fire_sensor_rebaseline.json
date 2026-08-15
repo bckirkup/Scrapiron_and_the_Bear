@@ -35,6 +35,11 @@
     "interpretation": "Engine-coupled arms, specifically A4 and its OPIR ablation, move when the TattleTots engine pin moves. A0-A3 and instrument validation did not move."
   },
   "comparison_config": {
+    "fire_source_commit": "42eb583",
+    "prior_engine_commit": "d4cfee1",
+    "current_engine_commit": "cee59f93f6973fa7fefb2f87dbb40a8ce0095113",
+    "command": "uv run --frozen fire-ecology compare --steps 100 --seed 42",
+    "ablation_command": "uv run --frozen fire-ecology compare --steps 100 --seed 42 --a4-opir-ablation",
     "steps": 100,
     "grid_rows": 20,
     "grid_cols": 20,
@@ -43,7 +48,15 @@
     "opir_cadence": 5
   },
   "instrument_validation_after_declared_geometry_decoder": {
+    "fire_source_commit": "42eb583",
+    "engine_commit": "cee59f93f6973fa7fefb2f87dbb40a8ce0095113",
+    "command": "uv run --frozen python /home/ubuntu/conformance-audit/measure_instruments.py /home/ubuntu/repos/Scrapiron-and-the-Bear fire",
     "steps": 200,
+    "seed": 42,
+    "grid": "20x20",
+    "cameras": 3,
+    "opir_cadence": 5,
+    "event_steps": 45,
     "decoder_precision": 0.7777777777777778,
     "static_prior_precision": 0.35555555555555557,
     "inferability_precision": 0.8444444444444444,
@@ -52,6 +65,9 @@
     "decoder_note": "The incumbent thermal-only decoder scored 0.778. The tiered decoder restores equivalent precision while honoring declared weather and fuel geometry when no event-detection stream has usable evidence."
   },
   "thermal_input_density_measurement": {
+    "fire_source_commit": "42eb583",
+    "engine_commit": "d4cfee1",
+    "command": "uv run --frozen python /home/ubuntu/conformance-audit/fire_remeasure.py",
     "steps": 200,
     "seed": 42,
     "mean_nonzero_fraction_before_sensor_driven_stream": 0.08,
@@ -72,8 +88,9 @@
       "opir_detections": 0
     },
     "after_rng_fix": {
-      "source_snapshot": "working tree after 21bb930 changes",
+      "fire_source_commit": "42eb583",
       "engine_commit": "cee59f93f6973fa7fefb2f87dbb40a8ce0095113",
+      "source_snapshot": "working tree after 21bb930 changes",
       "detections": 234,
       "suppressions": 1,
       "cost": 401.5,
@@ -83,6 +100,7 @@
       "opir_detections": 0
     },
     "prior_engine_after_rng_fix": {
+      "fire_source_commit": "42eb583",
       "engine_commit": "d4cfee1",
       "detections": 185,
       "suppressions": 1,
@@ -141,6 +159,7 @@
     }
   },
   "after_sensor_driven_stream": {
+    "fire_source_commit": "42eb583",
     "engine_commit": "cee59f93f6973fa7fefb2f87dbb40a8ce0095113",
     "A0 Human": {
       "detections": 581,
@@ -189,6 +208,7 @@
     }
   },
   "prior_engine_after_sensor_driven_stream": {
+    "fire_source_commit": "42eb583",
     "engine_commit": "d4cfee1",
     "A4 BMA": {
       "detections": 1335,
