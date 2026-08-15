@@ -1,4 +1,39 @@
 {
+  "provenance": {
+    "fire_source_commit": "42eb583",
+    "prior_tattletots_engine_commit": "d4cfee1",
+    "current_tattletots_engine_commit": "cee59f93f6973fa7fefb2f87dbb40a8ce0095113",
+    "comparison": {
+      "prior_command": "uv run --frozen fire-ecology compare --steps 100 --seed 42",
+      "current_command": "uv run --frozen fire-ecology compare --steps 100 --seed 42",
+      "ablation_command": "uv run --frozen fire-ecology compare --steps 100 --seed 42 --a4-opir-ablation",
+      "steps": 100,
+      "seed": 42,
+      "grid": "20x20",
+      "cameras": 3,
+      "opir_cadence": 5
+    },
+    "instrument_validation": {
+      "command": "uv run --frozen python /home/ubuntu/conformance-audit/measure_instruments.py /home/ubuntu/repos/Scrapiron-and-the-Bear fire",
+      "steps": 200,
+      "seed": 42,
+      "grid": "20x20",
+      "cameras": 3,
+      "opir_cadence": 5,
+      "event_steps": 45,
+      "candidate_locations": 400
+    },
+    "thermal_input_density": {
+      "command": "uv run --frozen python /home/ubuntu/conformance-audit/fire_remeasure.py",
+      "steps": 200,
+      "seed": 42,
+      "grid": "20x20",
+      "cameras": 3,
+      "opir_cadence": 5,
+      "engine_scope": "d4cfee1"
+    },
+    "interpretation": "Engine-coupled arms, specifically A4 and its OPIR ablation, move when the TattleTots engine pin moves. A0-A3 and instrument validation did not move."
+  },
   "comparison_config": {
     "steps": 100,
     "grid_rows": 20,
@@ -23,7 +58,7 @@
     "mean_nonzero_fraction_after_sensor_driven_stream": 0.049,
     "mean_observed_fraction_before_sensor_driven_stream": 0.9733333333333334,
     "mean_observed_fraction_after_sensor_driven_stream": 0.9733333333333334,
-    "measurement_note": "Both paths were evaluated on the same deterministic 200-step external grid sequence with adapter, physics, and sensor seed 42."
+    "measurement_note": "Both paths were evaluated on the same deterministic 200-step external grid sequence with adapter, physics, and sensor seed 42 under TattleTots engine d4cfee1. The old ground-truth arm recorded 184 Tot detections; the current sensor-driven path records 208 under engine cee59f93f6973fa7fefb2f87dbb40a8ce0095113. The old ground-truth arm cannot be remeasured because that code path no longer exists. No cross-engine inference about thermal-density sensitivity is drawn."
   },
   "a4_opir_ablation_rebaseline": {
     "before_rng_fix": {
@@ -38,6 +73,17 @@
     },
     "after_rng_fix": {
       "source_snapshot": "working tree after 21bb930 changes",
+      "engine_commit": "cee59f93f6973fa7fefb2f87dbb40a8ce0095113",
+      "detections": 234,
+      "suppressions": 1,
+      "cost": 401.5,
+      "burned_cells": 400,
+      "mean_detection_latency": 5.52,
+      "tot_detections": 234,
+      "opir_detections": 0
+    },
+    "prior_engine_after_rng_fix": {
+      "engine_commit": "d4cfee1",
       "detections": 185,
       "suppressions": 1,
       "cost": 401.5,
@@ -95,6 +141,7 @@
     }
   },
   "after_sensor_driven_stream": {
+    "engine_commit": "cee59f93f6973fa7fefb2f87dbb40a8ce0095113",
     "A0 Human": {
       "detections": 581,
       "suppressions": 393,
@@ -131,6 +178,18 @@
       "tot_detections": 0,
       "opir_detections": 0
     },
+    "A4 BMA": {
+      "detections": 1369,
+      "suppressions": 0,
+      "cost": 400.0,
+      "burned_cells": 399,
+      "mean_detection_latency": 1.72,
+      "tot_detections": 208,
+      "opir_detections": 1161
+    }
+  },
+  "prior_engine_after_sensor_driven_stream": {
+    "engine_commit": "d4cfee1",
     "A4 BMA": {
       "detections": 1335,
       "suppressions": 0,
