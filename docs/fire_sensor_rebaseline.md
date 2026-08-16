@@ -10,7 +10,7 @@ TattleTots `cee59f93f6973fa7fefb2f87dbb40a8ce0095113`. Both comparison and
 instrument measurements used the committed harness:
 
 ```text
-uv run --frozen python scripts/rebaseline_fire_measurements.py
+uv run --no-sync --no-build python scripts/rebaseline_fire_measurements.py
 ```
 
 The harness runs the 100-step comparison and OPIR-ablation arms plus the

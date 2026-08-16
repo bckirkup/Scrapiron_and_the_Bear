@@ -55,40 +55,38 @@ src/fire_ecology/
 ## Setup
 
 ```bash
-pip install -e domain-runner[dev]
-pip install -e TattleTots[dev]   # only for --layer tattletots
-pip install -e ".[dev]"
-pre-commit install
+uv sync --locked --no-build --no-binary-package fire-ecology --no-binary-package domain-runner --no-binary-package tattletots --extra dev
+uv run --no-sync --no-build pre-commit install
 ```
 
 ## Development Commands
 
 ```bash
-pytest
-pytest -m smoke
-ruff check src/ tests/
-mypy src/
+uv run --no-sync --no-build pytest
+uv run --no-sync --no-build pytest -m smoke
+uv run --no-sync --no-build ruff check src/ tests/
+uv run --no-sync --no-build mypy src/
 
 # Domain-only run (no TattleTots)
-fire-ecology sim --layer domain_only --steps 200 --verbose
+uv run --no-sync --no-build fire-ecology sim --layer domain_only --steps 200 --verbose
 
 # Batch sweeps
-fire-ecology batch --config configs/batch_example.json
+uv run --no-sync --no-build fire-ecology batch --config configs/batch_example.json
 
 # Integrated agent ecology
-fire-ecology sim --layer tattletots --config configs/tattletots_integration.json
+uv run --no-sync --no-build fire-ecology sim --layer tattletots --config configs/tattletots_integration.json
 ```
 
 ## Integrated Mode (with TattleTots Agent Ecology)
 
 ```bash
-fire-ecology sim --layer tattletots --config configs/tattletots_integration.json --output results.json --verbose
+uv run --no-sync --no-build fire-ecology sim --layer tattletots --config configs/tattletots_integration.json --output results.json --verbose
 ```
 
 Legacy wrapper:
 
 ```bash
-python scripts/run_with_tattletots.py \
+uv run --no-sync --no-build python scripts/run_with_tattletots.py \
     --config configs/tattletots_integration.json \
     --output results.json \
     --verbose

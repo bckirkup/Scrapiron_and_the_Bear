@@ -7,48 +7,46 @@ description: Guide for developing and testing the FireEcology domain simulation 
 
 ## Setup
 ```bash
-pip install -e domain-runner[dev]
-pip install -e TattleTots[dev]   # only for --layer tattletots
-pip install -e ".[dev]"
-pre-commit install
+uv sync --locked --no-build --no-binary-package fire-ecology --no-binary-package domain-runner --no-binary-package tattletots --extra dev
+uv run --no-sync --no-build pre-commit install
 ```
 
 ## Running the Simulation
 
 ```bash
 # Domain physics only (no TattleTots required)
-fire-ecology sim --layer domain_only --steps 50 --grid-rows 10 --grid-cols 10 --verbose
+uv run --no-sync --no-build fire-ecology sim --layer domain_only --steps 50 --grid-rows 10 --grid-cols 10 --verbose
 
 # Batch sweeps
-fire-ecology batch --config configs/batch_example.json
+uv run --no-sync --no-build fire-ecology batch --config configs/batch_example.json
 
 # Full agent ecology + COP dispatch
-fire-ecology sim --layer tattletots --config configs/tattletots_integration.json
+uv run --no-sync --no-build fire-ecology sim --layer tattletots --config configs/tattletots_integration.json
 
 # Legacy quick run
-fire-ecology --steps 200 --verbose
+uv run --no-sync --no-build fire-ecology --steps 200 --verbose
 ```
 
 ## Testing
 ```bash
 # All tests
-pytest
+uv run --no-sync --no-build pytest
 
 # Smoke tests only
-pytest -m smoke
+uv run --no-sync --no-build pytest -m smoke
 
 # Specific module
-pytest tests/test_fire.py -v
+uv run --no-sync --no-build pytest tests/test_fire.py -v
 
 # With coverage
-pytest --cov=fire_ecology --cov-report=term-missing
+uv run --no-sync --no-build pytest --cov=fire_ecology --cov-report=term-missing
 ```
 
 ## Linting & Type Checking
 ```bash
-ruff check src/ tests/
-ruff format --check src/ tests/
-mypy src/
+uv run --no-sync --no-build ruff check src/ tests/
+uv run --no-sync --no-build ruff format --check src/ tests/
+uv run --no-sync --no-build mypy src/
 ```
 
 ## Key Architecture Notes
@@ -101,10 +99,10 @@ Standalone baseline comparison files live in `baselines/`:
 ## Integrated Mode (Full Agent Ecology)
 
 ```bash
-fire-ecology sim --layer tattletots --config configs/tattletots_integration.json --output results.json --verbose
+uv run --no-sync --no-build fire-ecology sim --layer tattletots --config configs/tattletots_integration.json --output results.json --verbose
 
 # Legacy wrapper
-python scripts/run_with_tattletots.py \
+uv run --no-sync --no-build python scripts/run_with_tattletots.py \
     --config configs/tattletots_integration.json \
     --output results.json --verbose
 ```
@@ -115,7 +113,7 @@ See `docs/COORDINATION.md` for coordination with sibling repos.
 ## GPU Acceleration
 
 ```bash
-pip install -e ".[gpu]"  # installs cupy-cuda12x
+uv sync --locked --no-build --no-binary-package fire-ecology --no-binary-package domain-runner --no-binary-package tattletots --extra dev --extra gpu
 ```
 
 Set `"use_gpu": true` in the `"simulation"` section of the integration config.
@@ -126,7 +124,7 @@ Falls back silently to NumPy if CuPy or CUDA is unavailable.
 Generate config variants and run in parallel for large sweeps:
 
 ```bash
-python scripts/run_with_tattletots.py --config <variant>.json --output results/<name>.json
+uv run --no-sync --no-build python scripts/run_with_tattletots.py --config <variant>.json --output results/<name>.json
 ```
 
 Key domain parameters to sweep: `grid_rows`, `grid_cols`, `ignition_probability`,
