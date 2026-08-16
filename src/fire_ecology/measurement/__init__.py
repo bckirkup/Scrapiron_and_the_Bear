@@ -1,5 +1,28 @@
 """Measurement harnesses for the fire domain."""
 
+from fire_ecology.measurement.designed_reporter import (
+    DEFAULT_SEEDS,
+    FEASIBLE_ARMS,
+    ORACLE_POLICY_NAME,
+    POLICY_ARMS,
+    DesignedReporterSpec,
+    OracleDiagnosticPolicy,
+    SeedRun,
+    assemble_results,
+    build_world,
+    designed_seed_count,
+    exploitable_margin,
+    markdown_report,
+    policy_name_for_arm,
+    results_json,
+    run_experiment,
+    run_seed,
+    simulation_output,
+    summarize_arm,
+)
+from fire_ecology.measurement.designed_reporter import (
+    instrument_nulls as designed_reporter_nulls,
+)
 from fire_ecology.measurement.grounded_access import (
     ArmResult,
     ArmSpec,
@@ -12,12 +35,31 @@ from fire_ecology.measurement.grounded_access import (
 )
 
 __all__ = [
+    "DEFAULT_SEEDS",
+    "FEASIBLE_ARMS",
+    "ORACLE_POLICY_NAME",
+    "POLICY_ARMS",
     "ArmResult",
     "ArmSpec",
+    "DesignedReporterSpec",
+    "OracleDiagnosticPolicy",
+    "SeedRun",
     "SweepSpec",
+    "assemble_results",
+    "build_world",
+    "designed_reporter_nulls",
+    "designed_seed_count",
+    "exploitable_margin",
     "instrument_nulls",
+    "markdown_report",
+    "policy_name_for_arm",
     "reproductive_correlation",
+    "results_json",
     "run_arm",
+    "run_experiment",
+    "run_seed",
     "run_sweep",
+    "simulation_output",
+    "summarize_arm",
     "sweep_arms",
 ]
