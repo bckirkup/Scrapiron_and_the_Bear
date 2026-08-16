@@ -10,10 +10,10 @@ All repos must be siblings under a common workspace root (e.g. `D:\TotsFiles\`):
 cd D:\TotsFiles
 
 # Smoke test
-uv run --no-sync --no-build python Scrapiron_and_the_Bear/baselines/run_fire_ecology_baselines.py --smoke-test
+uv run --no-sync --no-build --project Scrapiron-and-the-Bear python Scrapiron-and-the-Bear/baselines/run_fire_ecology_baselines.py --smoke-test
 
 # Full scan (2,160 runs) with multiprocessing
-uv run --no-sync --no-build python Scrapiron_and_the_Bear/baselines/run_fire_ecology_baselines.py --workers 8
+uv run --no-sync --no-build --project Scrapiron-and-the-Bear python Scrapiron-and-the-Bear/baselines/run_fire_ecology_baselines.py --workers 8
 ```
 
 Parallel mode uses **ProcessPoolExecutor** (separate Python worker processes). You should see multiple `python.exe` jobs in Task Manager.
