@@ -137,3 +137,41 @@ Load results:
 from tattletots.output_schema import SimulationOutput
 result = SimulationOutput.model_validate_json(path.read_text())
 ```
+
+## Measurement Harness Testing (designed reporter / margin arms)
+
+Everything runs through uv; never use plain `uv run` or `pip install`:
+```bash
+uv run --no-sync --no-build python scripts/run_designed_reporter_experiment.py \
+  --steps 40 --seeds 42 43 44 --grid-rows 12 --grid-cols 12 --n-cameras 2 \
+  --base-ignition-rate 0.01 --initial-population 6 --max-population 12 \
+  --jobs 2 --docs-dir /tmp/dr_check
+```
+A short config like the above finishes in ~20 s and writes the same artifact set as
+the committed 200-step / 20-seed run: `<docs-dir>/designed_reporter_measurement.json`,
+`.md`, and one `SimulationOutput` per arm under `<docs-dir>/designed_reporter/<arm>.json`.
+Always point `--docs-dir` at a scratch dir so committed artifacts are not clobbered.
+
+Testing gotchas worth remembering:
+- **Per-arm JSONs are not byte-reproducible**: `SimulationOutput` stamps a `timestamp`
+  field, so determinism checks must compare the top-level JSON (`nulls`, `arms`,
+  `margin`, `per_seed`) or diff arm files while ignoring `.timestamp`.
+- `--jobs N` must not change any number; comparing a `--jobs 1` run to a `--jobs 2`
+  run is a cheap nondeterminism probe.
+- **Tampering with a reporter policy's defaults**: the policy is a dataclass, so
+  patching `FireThermalEvidenceReporterPolicy.confidence_floor` on the class does
+  nothing to new instances. Re-register the factory instead, and restore it after:
+  `register_reporter_policy(FIRE_REPORTER_POLICY_NAME, lambda: FireThermalEvidenceReporterPolicy(confidence_floor=0.0))`.
+- **Proving the confidence floor is load-bearing needs a no-fire window**: with fires
+  present a camera detection (~0.72) dominates `max()`, so admitting the 0.3 OPIR
+  false positives changes nothing. Run `--base-ignition-rate 0.0`: at floor 0.45 the
+  designed arms emit zero reports (unscorable); at floor 0.0 they emit false reports.
+- A zero-ignition window is a good crash/edge probe: `nulls.event_steps == 0`, all
+  nulls collapse to 0.0, and evolved arms may still report (0 % precision) while the
+  designed arms land in `margin.unscorable_arms`.
+- Ground-truth leakage can be checked at runtime by spying on `decide(context)` and
+  listing `dir(context)`; the engine only exposes `streams`, `observation`,
+  `signal_vector`, `anomaly_score`, `escalation_threshold`, `location_frame`, `time_step`.
+- A `RuntimeWarning: overflow encountered in square` from `numpy/_core/_methods.py`
+  shows up in these runs and in unrelated suites (e.g. `tests/test_comparison.py`);
+  it is pre-existing and non-fatal, not a signal from the harness under test.
