@@ -24,7 +24,6 @@ Parallel mode uses **ProcessPoolExecutor** (separate Python worker processes). Y
 |------|---------|
 | `run_fire_ecology_baselines.py` | Parameter scan runner |
 | `fire_ecology_baselines_config.json` | Factor levels, seeds, steps |
-| `fire_ecology_baselines_results.zip` | Pre-computed results (optional) |
 
 ## Shared utilities
 
