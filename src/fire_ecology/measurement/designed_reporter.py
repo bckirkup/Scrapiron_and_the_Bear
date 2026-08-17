@@ -34,7 +34,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 import numpy as np
-from tattletots.engine.config import SimulationConfig
+from tattletots.engine.config import GenePoolConfig, SimulationConfig
 from tattletots.engine.world import World
 from tattletots.interface.instrument import validate_instrument
 from tattletots.interface.reporter_policy import (
@@ -51,6 +51,7 @@ from tattletots.output_schema import (
     SimulationOutput,
     TimeSeries,
 )
+from tattletots.telemetry.payoff_ledger import PayoffLedger
 
 from fire_ecology.adapter.fire_adapter import FireEcologyAdapter
 from fire_ecology.architectures.ecology_options import EcologyMeasurementOptions
@@ -120,6 +121,65 @@ register_reporter_policy(ORACLE_POLICY_NAME, OracleDiagnosticPolicy)
 
 
 @dataclass(frozen=True)
+class PayoffLevers:
+    """The engine's measured payoff levers, off by default.
+
+    Levers 1-4 (verified-correctness attention income, merit-ordered rationing of
+    reproduction at the population cap, false-alarm pricing at reachable precision,
+    escalation thresholds calibrated in score units) were measured in TattleTots and
+    are switched together; ``reproduction_correctness_weight`` is lever 5, the response
+    gate, and is the only quantity meant to differ between a control and a treatment
+    arm. Nothing here subsidizes an agent, protects a lineage or floors the population:
+    the levers change what income a correct report earns, what a false alarm costs, the
+    units a threshold is compared in, and the order in which a binding cap is spent.
+    """
+
+    enabled: bool = False
+    correct_report_attention_value: float = 8.0
+    false_alarm_break_even_precision: float = 0.2
+    escalation_threshold_range: tuple[float, float] = (0.05, 0.3)
+    reproduction_correctness_weight: float = 0.0
+
+    def engine_kwargs(self) -> dict[str, Any]:
+        """``SimulationConfig`` keyword arguments for this lever setting."""
+        if not self.enabled:
+            return {}
+        return {
+            "correct_report_attention_value": self.correct_report_attention_value,
+            "reproduction_merit_ordering": True,
+            "escalation_calibration_in_score_units": True,
+            "false_alarm_break_even_precision": self.false_alarm_break_even_precision,
+            "reproduction_correctness_weight": self.reproduction_correctness_weight,
+        }
+
+    def gene_pool(self) -> GenePoolConfig | None:
+        """Gene-pool constraints for this lever setting; ``None`` keeps the engine default.
+
+        ``gene_pool`` is a :class:`~tattletots.engine.world.World` argument rather than a
+        ``SimulationConfig`` field, so it has to be passed separately — ``SimulationConfig``
+        would silently drop it.
+        """
+        if not self.enabled:
+            return None
+        return GenePoolConfig(escalation_threshold_range=self.escalation_threshold_range)
+
+    def as_dict(self) -> dict[str, Any]:
+        """Serializable description; empty when the levers are off."""
+        if not self.enabled:
+            return {}
+        return {
+            "payoff_levers": {
+                "correct_report_attention_value": self.correct_report_attention_value,
+                "reproduction_merit_ordering": True,
+                "escalation_calibration_in_score_units": True,
+                "false_alarm_break_even_precision": self.false_alarm_break_even_precision,
+                "escalation_threshold_range": list(self.escalation_threshold_range),
+                "reproduction_correctness_weight": self.reproduction_correctness_weight,
+            }
+        }
+
+
+@dataclass(frozen=True)
 class DesignedReporterSpec:
     """Scenario shared by every arm; only the reporter policies differ."""
 
@@ -136,6 +196,7 @@ class DesignedReporterSpec:
     grounded_attractiveness_multiplier: float = 1.0
     max_input_streams: int = 3
     invasion_fraction: float = 0.15
+    levers: PayoffLevers = PayoffLevers()
 
     def options(self) -> EcologyMeasurementOptions:
         """Measurement options: the agent-only, OPIR-ablated detection path."""
@@ -159,6 +220,7 @@ class DesignedReporterSpec:
             "mutation_rate": self.mutation_rate,
             "invasion_fraction": self.invasion_fraction,
             **self.options().as_dict(),
+            **self.levers.as_dict(),
         }
 
 
@@ -213,8 +275,9 @@ def build_world(
         seed=seed,
         mutation_rate=spec.mutation_rate,
         **spec.options().engine_kwargs(),
+        **spec.levers.engine_kwargs(),
     )
-    world = World(config=config)
+    world = World(config=config, gene_pool=spec.levers.gene_pool())
     for stream in adapter.get_streams():
         world.add_stream(stream)
     for user in adapter.get_users():
@@ -327,6 +390,8 @@ class SeedRun:
     parent_child_reproductive_correlation: float | None
     ecology: dict[str, Any]
     time_series: dict[str, Any] = field(default_factory=dict)
+    payoff_coupling: dict[str, Any] | None = None
+    """:meth:`PayoffLedger.coupling_summary` output, when a ledger was attached."""
 
     @property
     def designed_precision(self) -> float:
@@ -344,6 +409,8 @@ class SeedRun:
         record = asdict(self)
         if not with_series:
             record.pop("time_series")
+        if self.payoff_coupling is None:
+            record.pop("payoff_coupling")
         record["designed_precision"] = self.designed_precision
         record["ordinary_precision"] = self.ordinary_precision
         record["precision"] = self.precision
@@ -353,9 +420,23 @@ class SeedRun:
         return record
 
 
-def run_seed(spec: DesignedReporterSpec, seed: int, arm: str) -> SeedRun:
-    """Run one arm at one seed and collect its agent-only measurements."""
+def run_seed(
+    spec: DesignedReporterSpec,
+    seed: int,
+    arm: str,
+    *,
+    with_payoff_ledger: bool = False,
+) -> SeedRun:
+    """Run one arm at one seed and collect its agent-only measurements.
+
+    With ``with_payoff_ledger`` the engine's :class:`PayoffLedger` observes every step
+    and the run carries its coupling summary, which is where the two falsification
+    clauses and the reproduction-gate shares are measured. The ledger reads public
+    agent state only and consumes no random draws, so a run is identical with and
+    without it.
+    """
     adapter, world = build_world(spec, seed, arm)
+    ledger = PayoffLedger() if with_payoff_ledger else None
     steps_with_fire = 0
     steps_with_correct_report = 0
     for step in range(spec.steps):
@@ -364,9 +445,13 @@ def run_seed(spec: DesignedReporterSpec, seed: int, arm: str) -> SeedRun:
         world.set_event_state(active)
         _set_oracle_locations(world, active)
         record = world.step()
+        if ledger is not None:
+            ledger.observe(world)
         steps_with_fire += int(bool(active))
         steps_with_correct_report += int(record.correct_reports > 0)
 
+    if ledger is not None:
+        ledger.finalize(world)
     series: dict[str, Any] = world.telemetry.ecology_time_series()
     parents = {agent.id: list(agent.state.parent_ids) for agent in world.agents.values()}
     return SeedRun(
@@ -385,6 +470,7 @@ def run_seed(spec: DesignedReporterSpec, seed: int, arm: str) -> SeedRun:
         parent_child_reproductive_correlation=reproductive_correlation(parents),
         ecology=_ecology_summary(world, series),
         time_series=series,
+        payoff_coupling=None if ledger is None else ledger.coupling_summary(),
     )
 
 
@@ -829,6 +915,16 @@ def _interpretation(results: dict[str, Any]) -> list[str]:
     return lines
 
 
+_RELATED_MEASUREMENTS: tuple[str, ...] = (
+    "",
+    "## Related measurements",
+    "",
+    "- [Response gate (lever 5)](response_gate_measurement.md) — whether keying",
+    "  reproductive merit on verified correctness moves either falsification clause on",
+    "  this instrument, measured on the same agent-only OPIR-ablated path.",
+)
+
+
 def markdown_report(results: dict[str, Any]) -> str:
     """Render the documentation artifact for one experiment."""
     lines = _header_lines(results)
@@ -837,6 +933,7 @@ def markdown_report(results: dict[str, Any]) -> str:
     lines.extend(_per_seed_table(results, ALL_DESIGNED_ARM))
     lines.extend(_per_seed_table(results, INVASION_ARM))
     lines.extend(_interpretation(results))
+    lines.extend(_RELATED_MEASUREMENTS)
     return "\n".join(lines) + "\n"
 
 

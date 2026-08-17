@@ -131,3 +131,9 @@ measured; this measurement does not claim either falsification clause cleared.
 Precision is a pooled count ratio: correct reports over reports issued by that
 arm's own reporters. An arm whose reporters issued no report is not scorable and
 is listed as such rather than shown as 0%.
+
+## Related measurements
+
+- [Response gate (lever 5)](response_gate_measurement.md) — whether keying
+  reproductive merit on verified correctness moves either falsification clause on
+  this instrument, measured on the same agent-only OPIR-ablated path.

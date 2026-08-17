@@ -22,6 +22,7 @@ from fire_ecology.measurement.designed_reporter import (
     DEFAULT_SEEDS,
     POLICY_ARMS,
     DesignedReporterSpec,
+    PayoffLevers,
     SeedRun,
     assemble_results,
     markdown_report,
@@ -51,6 +52,46 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--grounded-attractiveness-multiplier", type=float, default=1.0)
     parser.add_argument("--max-input-streams", type=int, default=3)
     parser.add_argument("--invasion-fraction", type=float, default=0.15)
+    parser.add_argument(
+        "--payoff-levers",
+        action="store_true",
+        help=(
+            "Switch on the engine's measured payoff levers (verified-correctness "
+            "attention income, merit-ordered reproduction, false-alarm pricing, "
+            "score-unit escalation calibration). Off by default, which reproduces the "
+            "committed numbers."
+        ),
+    )
+    parser.add_argument(
+        "--correct-report-attention-value",
+        type=float,
+        default=8.0,
+        help="Attention value of a verified-correct report; used with --payoff-levers.",
+    )
+    parser.add_argument(
+        "--break-even-precision",
+        type=float,
+        default=0.2,
+        help="False-alarm pricing target precision; used with --payoff-levers.",
+    )
+    parser.add_argument(
+        "--threshold-range",
+        type=float,
+        nargs=2,
+        default=[0.05, 0.3],
+        metavar=("LOW", "HIGH"),
+        help="Starting escalation_threshold range; used with --payoff-levers.",
+    )
+    parser.add_argument(
+        "--correctness-weight",
+        type=float,
+        default=0.0,
+        help=(
+            "Lever 5, the response gate: share of reproductive merit carried by rank in "
+            "verified correctness. Used with --payoff-levers; 0.0 is the reserves-only "
+            "control."
+        ),
+    )
     parser.add_argument("--jobs", type=int, default=1)
     parser.add_argument("--docs-dir", type=Path, default=_DOCS_DIR)
     return parser.parse_args(argv)
@@ -70,6 +111,19 @@ def _spec_from_args(args: argparse.Namespace) -> DesignedReporterSpec:
         grounded_attractiveness_multiplier=args.grounded_attractiveness_multiplier,
         max_input_streams=args.max_input_streams,
         invasion_fraction=args.invasion_fraction,
+        levers=levers_from_args(args),
+    )
+
+
+def levers_from_args(args: argparse.Namespace) -> PayoffLevers:
+    """Payoff-lever settings from the CLI; disabled unless ``--payoff-levers`` is given."""
+    low, high = (float(value) for value in args.threshold_range)
+    return PayoffLevers(
+        enabled=bool(args.payoff_levers),
+        correct_report_attention_value=float(args.correct_report_attention_value),
+        false_alarm_break_even_precision=float(args.break_even_precision),
+        escalation_threshold_range=(low, high),
+        reproduction_correctness_weight=float(args.correctness_weight),
     )
 
 
