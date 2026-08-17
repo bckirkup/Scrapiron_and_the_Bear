@@ -173,3 +173,39 @@ Testing gotchas worth remembering:
 - A `RuntimeWarning: overflow encountered in square` from `numpy/_core/_methods.py`
   shows up in these runs and in unrelated suites (e.g. `tests/test_comparison.py`);
   it is pre-existing and non-fatal, not a signal from the harness under test.
+
+## Payoff levers and the response-gate experiment
+
+`PayoffLevers` in `src/fire_ecology/measurement/designed_reporter.py` is default-off; with
+`enabled=False` both `engine_kwargs()` and `as_dict()` return `{}`, so a levers-off run's
+JSON `spec` has **no** `payoff_levers` key. That absence/presence is the cheapest check that
+`--payoff-levers` on `scripts/run_designed_reporter_experiment.py` is wired, but it only
+proves serialization — also compare a measured number (e.g. `arms.ordinary.reports`) between
+a levers-off and a levers-on run at the same seed, since a run with the flag inert would be
+byte-identical to the control.
+
+Response-gate experiment (lever 5):
+```bash
+uv run --no-sync --no-build python scripts/run_response_gate_experiment.py \
+  --steps 40 --primary-seeds 42 43 --holdout-seeds 101 --jobs 2 --docs-dir /tmp/gate_check
+```
+- Finishes in ~7 s at 40 steps; writes `<docs-dir>/response_gate_measurement.{json,md}`.
+  Always pass a scratch `--docs-dir`; the default is the committed `docs/`.
+- `--holdout-seeds` uses `nargs="+"`, so it cannot be passed empty — give it at least one
+  seed (there is no flag to skip the holdout block).
+- `--steps 1` is the useful edge probe: no arm issues a report, every `precision` is `null`
+  in the JSON, and the Markdown must render `—` (not `0.00%`) in those cells. Grep the MD
+  for `0.00%` on precision rows to catch a `None` → `0.0` coercion regression.
+- Only evolved arms with `W > 0` appear in `verdicts["arms"]`; the `W=0` control and the
+  designed ceiling are deliberately unjudged.
+
+Verifying the "W-only" arm invariant and the gene pool:
+`escalation_threshold_range` is **not** a `SimulationConfig` field — it is a `GenePoolConfig`
+passed as a separate `World(config=..., gene_pool=...)` argument, so a config-only wiring
+would silently drop it. To test, monkeypatch
+`fire_ecology.measurement.designed_reporter.SimulationConfig` and `.World` with spies that
+record kwargs, run `run_arm_seed` for the control and treatment arms, and assert the two
+config kwarg dicts differ on exactly `{"reproduction_correctness_weight"}`. For the gene
+pool, build two worlds with disjoint ranges (e.g. `(0.05, 0.3)` vs `(0.8, 0.9)`) and assert
+`agent.genome.escalation_threshold` falls inside the respective range for every initial
+agent — identical distributions mean the gene pool never reached the world.
