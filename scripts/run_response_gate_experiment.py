@@ -151,13 +151,22 @@ def _reproduce_command(args: argparse.Namespace) -> str:
     )
 
 
+def _artifact_path(output_dir: Path, name: str) -> Path:
+    """Resolve one artifact inside ``output_dir``, rejecting escapes from that directory."""
+    path = (output_dir / name).resolve()
+    if path.parent != output_dir:
+        raise ValueError(f"artifact {name} would be written outside {output_dir}")
+    return path
+
+
 def _write_artifacts(results: dict[str, Any], docs_dir: Path, command: str) -> list[Path]:
-    docs_dir.mkdir(parents=True, exist_ok=True)
-    results_path = docs_dir / _RESULTS_NAME
+    output_dir = docs_dir.resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    results_path = _artifact_path(output_dir, _RESULTS_NAME)
     results_path.write_text(
         json.dumps(results_json(results), indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
-    report_path = docs_dir / _REPORT_NAME
+    report_path = _artifact_path(output_dir, _REPORT_NAME)
     report_path.write_text(markdown_report(results, command), encoding="utf-8")
     return [results_path, report_path]
 

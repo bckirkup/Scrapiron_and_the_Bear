@@ -310,8 +310,10 @@ def test_a_run_without_adults_yields_neutral_metrics() -> None:
 
 
 def test_metrics_require_a_ledger() -> None:
+    arm = _arm()
+    run = _blank_run()
     with pytest.raises(ValueError, match="without a payoff ledger"):
-        rg.seed_metrics(_arm(), _blank_run())
+        rg.seed_metrics(arm, run)
 
 
 @requires_grounded_knobs
