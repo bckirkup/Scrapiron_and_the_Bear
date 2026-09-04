@@ -49,6 +49,9 @@ Quantities this repo needs sourced, and the words that find them:
 - Do **not** set `year_min`. The canonical spread model is Rothermel (1972) and
   the standard fuel models are Anderson (1982); a recency filter removes the
   primary sources and leaves you with reviews that cite them.
+- Much of the foundational work is in USDA Forest Service research papers,
+  which may not be indexed at all — a search returning nothing is not evidence
+  that nothing was measured.
 
 ## Most of this model's constants are dimensionless — record the derivation
 
