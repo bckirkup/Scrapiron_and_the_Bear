@@ -1,29 +1,24 @@
 ---
 name: searching-literature-evidence
-description: Search the peer-reviewed literature with the Consensus MCP server to source a FireEcology parameter — rate of spread by fuel model, wind and slope factors, fuel moisture, ignition density, and camera/thermal/OPIR detection performance — including query construction, filter discipline, and how a hit becomes a provenance comment with an evidence grade. Use whenever a physical or sensor constant needs a citation, or when asked what the literature says about a mechanism.
+description: Search the peer-reviewed literature with the Consensus MCP server to source a FireEcology parameter — rate of spread by fuel model, wind and slope factors, fuel moisture, ignition density, and camera/thermal/OPIR detection performance — including how a hit becomes a provenance comment with an evidence grade. Use whenever a physical or sensor constant needs a citation, or when asked what the literature says about a mechanism. Pairs with the org-level consensus-literature-retrieval skill, which owns retrieval mechanics.
 ---
 
 # Searching the Literature (Consensus MCP)
 
-The `consensus` MCP server has one tool, `search`, over ~220M papers
-(Semantic Scholar, PubMed, Scopus, ArXiv). It returns title, authors, year,
-journal, citation count, DOI, a Consensus URL, and the abstract.
+## Retrieval mechanics are in the org-level skill
 
-```
-mcp_tool(command="call_tool", server="consensus", tool_name="search",
-         tool_args='{"query": "rate of spread fuel model grass shrub timber litter"}')
-```
+Load `consensus-literature-retrieval` (`~/.agents/skills/`) before searching. It
+owns the tool surface, `include_full_text_chunks: true` — which is mandatory and
+returns Results, Methods and tables, including for paywalled articles — query
+construction, filter behaviour, result handling, and recording which section of
+the paper a number was read from.
 
-Run `mcp_tool(command="list_tools", server="consensus")` for the current
-parameter list before using an unfamiliar filter.
+This skill is the other half: what needs sourcing in [FireEcology], and what a hit is
+allowed to become here.
 
 ## Query construction
 
-Query in the vocabulary of the paper you want, not the question you have. Fire
-behaviour papers name the quantity and the fuel:
-
-- Good: `head fire rate of spread grass fuel model wind adjustment factor`
-- Weak: `how fast does fire spread`
+- Good: `head fire rate of spread grass fuel model wind adjustment factor` (also: `rate of spread fuel model grass shrub timber litter`)
 
 Quantities this repo needs sourced, and the words that find them:
 
@@ -41,44 +36,19 @@ Quantities this repo needs sourced, and the words that find them:
   `minimum detectable fire size`, `false alarm rate`, `omission/commission
   error`, `thermal camera detection range`.
 
-Search for the mechanism, then separately for the number. The paper
-establishing that slope matters is not the one that fitted the multiplier.
-
 ## Filter discipline
-
-Default to **no filters**; every filter silently removes evidence. Specific to
-this repo:
 
 - `medical_mode=true` and `human=true` are meaningless here and will discard
   the entire fire-science and remote-sensing literature.
+
 - `study_types`, `controlled` and `sample_size_min` describe clinical designs;
   an experimental-burn campaign is none of them.
+
 - `domain="env,eng,geog,agri"` is the useful narrowing.
+
 - Do **not** set `year_min`. The canonical spread model is Rothermel (1972) and
   the standard fuel models are Anderson (1982); a recency filter removes the
   primary sources and leaves you with reviews that cite them.
-- `sjr_max=1` gives Q1 only; never reach for `sjr_min`, which *excludes* the top
-  tiers. Note that much of the foundational work is in USDA Forest Service
-  research papers, which may not be indexed at all — a search returning nothing
-  is not evidence that nothing was measured.
-
-Filters reorder as well as remove: the top hit for the same query changes when
-`domain` and `year_min` are set. Re-run a promising query without filters before
-calling any value *the* measurement.
-
-## Result handling
-
-- Default page returns 20 papers; `page_size` narrows it (5 works). `page=1`
-  returns a genuinely different set on this organisation's plan, so paginate
-  when the first page is all reviews.
-- Twenty abstracts overflow the tool result. The output is truncated and the
-  full text written to a file named in the truncation notice — **read that
-  file**. Items 15-20 are frequently the measurement papers, because reviews
-  rank higher.
-- Spread rates and detection curves live in tables and figures. Open the DOI
-  when the constant matters.
-- Consensus asks for numbered inline citations with hyperlinked titles and the
-  exact URLs it returned. Preserve the DOI when it gives one.
 
 ## Most of this model's constants are dimensionless — record the derivation
 
@@ -148,9 +118,3 @@ rebaseline come out right — `docs/fire_sensor_rebaseline.md`,
 results are only informative if the fire physics and sensor performance were
 sourced independently; screening candidate papers by which value helps converts
 a measurement of the architecture into a measurement of the search.
-
-Fix the query and the filters from the definition of the quantity, before
-looking at what the run needs. If several papers measure it, take a stated
-central value or the midpoint of the range and say which — not the end that
-helps. If a sourced constant makes an architecture look worse, that is a result:
-report it.
