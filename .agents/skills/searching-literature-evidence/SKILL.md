@@ -13,12 +13,15 @@ returns Results, Methods and tables, including for paywalled articles — query
 construction, filter behaviour, result handling, and recording which section of
 the paper a number was read from.
 
-This skill is the other half: what needs sourcing in [FireEcology], and what a hit is
+This skill is the other half: what needs sourcing in FireEcology, and what a hit is
 allowed to become here.
 
 ## Query construction
 
-- Good: `head fire rate of spread grass fuel model wind adjustment factor` (also: `rate of spread fuel model grass shrub timber litter`)
+Fire behaviour papers name the quantity and the fuel:
+
+- Good: `head fire rate of spread grass fuel model wind adjustment factor`
+- Weak: `how fast does fire spread`
 
 Quantities this repo needs sourced, and the words that find them:
 
@@ -36,16 +39,18 @@ Quantities this repo needs sourced, and the words that find them:
   `minimum detectable fire size`, `false alarm rate`, `omission/commission
   error`, `thermal camera detection range`.
 
+The paper establishing that slope matters is not the one that fitted the
+multiplier.
+
 ## Filter discipline
+
+Specific to this repo:
 
 - `medical_mode=true` and `human=true` are meaningless here and will discard
   the entire fire-science and remote-sensing literature.
-
 - `study_types`, `controlled` and `sample_size_min` describe clinical designs;
   an experimental-burn campaign is none of them.
-
 - `domain="env,eng,geog,agri"` is the useful narrowing.
-
 - Do **not** set `year_min`. The canonical spread model is Rothermel (1972) and
   the standard fuel models are Anderson (1982); a recency filter removes the
   primary sources and leaves you with reviews that cite them.
@@ -121,3 +126,6 @@ rebaseline come out right — `docs/fire_sensor_rebaseline.md`,
 results are only informative if the fire physics and sensor performance were
 sourced independently; screening candidate papers by which value helps converts
 a measurement of the architecture into a measurement of the search.
+
+If a sourced constant makes an architecture look worse, that is a result:
+report it.
