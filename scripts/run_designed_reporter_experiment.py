@@ -152,24 +152,33 @@ def _run_all(
     return runs
 
 
+def _artifact_path(parent_dir: Path, name: str) -> Path:
+    """Resolve one artifact inside ``parent_dir``, rejecting escapes from that directory."""
+    path = (parent_dir / name).resolve()
+    if path.parent != parent_dir:
+        raise ValueError(f"artifact {name} would be written outside {parent_dir}")
+    return path
+
+
 def _write_artifacts(results: dict[str, Any], docs_dir: Path) -> list[Path]:
-    docs_dir.mkdir(parents=True, exist_ok=True)
-    outputs_dir = docs_dir / _OUTPUT_SUBDIR
+    output_dir = docs_dir.resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    outputs_dir = _artifact_path(output_dir, _OUTPUT_SUBDIR)
     outputs_dir.mkdir(parents=True, exist_ok=True)
 
     written: list[Path] = []
-    results_path = docs_dir / _RESULTS_NAME
+    results_path = _artifact_path(output_dir, _RESULTS_NAME)
     results_path.write_text(
         json.dumps(results_json(results), indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
     written.append(results_path)
 
-    report_path = docs_dir / _REPORT_NAME
+    report_path = _artifact_path(output_dir, _REPORT_NAME)
     report_path.write_text(markdown_report(results), encoding="utf-8")
     written.append(report_path)
 
     for arm in results["runs"]:
-        path = outputs_dir / f"{arm}.json"
+        path = _artifact_path(outputs_dir, f"{arm}.json")
         simulation_output(results, arm).write_json(path)
         written.append(path)
     return written
